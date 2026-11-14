@@ -33,10 +33,10 @@ export type PassengerScreenName =
 
 export const PASSENGER_SCREEN_TITLES: Partial<Record<PassengerScreenName, string>> = {
   welcome: "WOKI",
-  phone: "Ingresa tu celular",
-  otp: "Verifica tu celular",
-  role: "¿Cómo usarás la app?",
-  register: "Crea tu cuenta",
+  phone: "Introduce tu número de teléfono",
+  otp: "Verifica tu número",
+  role: "¿Cómo quieres continuar?",
+  register: "Ingresa tu DNI",
   terms: "Términos y privacidad",
   emergency: "Contactos de emergencia",
   home: "¿A dónde vamos?",

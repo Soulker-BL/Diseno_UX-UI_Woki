@@ -1,5 +1,5 @@
-import WelcomeScreen from "../features/passenger/WelcomeScreen";
+import { RoleSelectionScreen } from "../features/passenger/RoleSelectionScreen";
 
 export default function RoleScreen() {
-  return <WelcomeScreen />;
+  return <RoleSelectionScreen />;
 }

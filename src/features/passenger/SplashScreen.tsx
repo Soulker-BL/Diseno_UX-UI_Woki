@@ -45,7 +45,7 @@ export default function SplashScreen() {
 
     drive.start();
     dashes.start();
-    const timer = setTimeout(() => router.replace("/rol"), SPLASH_DURATION);
+    const timer = setTimeout(() => router.replace("/inicio"), SPLASH_DURATION);
     return () => {
       clearTimeout(timer);
       drive.stop();

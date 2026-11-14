@@ -47,7 +47,7 @@ components:
 
 ### Creative North Star
 
-Use the landing page and brand manual as identity references, not as a screen template. The app opens with the landing-matched Woki logo, tagline, and passing taxi animation, then a concise role choice. After registration, keep the map as the primary surface and place booking and trip controls in a focused sheet above it.
+Use the landing page and brand manual as identity references, not as a screen template. The app opens with the landing-matched Woki logo, tagline, and passing taxi animation, then a welcome screen with phone sign-in. The passenger flow verifies a phone, asks for a role, gathers a DNI and profile photo, and offers an emergency contact before opening the map. Keep the map as the primary surface and place booking and trip controls in a focused sheet above it.
 
 ### Product context and register
 
@@ -58,7 +58,7 @@ Use the landing page and brand manual as identity references, not as a screen te
 - **Register:** Product interface with the landing page's confident brand expression.
 - **Memorable signature:** The Woki location-pin “i”, animated taxi on a moving road, and the deep-to-cyan landing gradient.
 - **Restraint:** Keep the splash logo-only and role choice concise. Keep booking sheets focused, compact, and readable over the map.
-- **Anti-references:** Generic ride-hailing dashboards, unrelated stock imagery, and repeated large demo controls in the main journey.
+- **Anti-references:** Generic ride-hailing dashboards, unrelated stock imagery, and oversized demo controls. Keep a small, consistent Demo action in each passenger flow step.
 - **Token ownership/runtime mapping:** `src/components/ui.tsx` owns the Woki palette and shared controls. `PassengerTheme` applies the same Woki surfaces to passenger and driver routes. `SplashScreen.tsx` mirrors the landing entrance with the Woki mark, “Tu taxi urbano, más cerca” tagline, gradient, and moving taxi on a full-width road. `WelcomeScreen.tsx` keeps the role choice focused without a duplicate route illustration.
 
 ## Colors
@@ -73,7 +73,7 @@ The brand manual and landing use Open Sans. The mobile project currently has no 
 
 ## Layout
 
-The role screen uses a compact brand hero and two equal role choices. After passenger account setup, the map fills the viewport and a bottom sheet carries search, saved places, fare, payment, offers, and trip status. Driver registration collects identity and vehicle details, uploads required documents, shows review status, then asks for a commission or monthly plan before opening the work tabs. Driver routes share the passenger palette, cards, buttons, and status surfaces while keeping radar, active trip, wallet, and profile tasks distinct. Real driver screens do not present sample passengers, earnings, documents, vehicles, or reviews as live data; demo journeys are labeled and separated from the normal flow. Auth forms separate paternal and maternal surnames and retain the existing DNI field and four-step passenger signup flow. Auth and account forms use a 20 px gutter and keyboard-safe scrolling. Values map to React Native density-independent units.
+The start screen presents the brand and phone sign-in. The role screen uses two equal choices after the OTP step. After passenger account setup, the map fills the viewport and a bottom sheet carries destination search, a vertical list of saved or suggested places, fare, payment, trip details, offers, and trip status. Driver registration collects identity and vehicle details, uploads required documents, shows review status, then asks for a commission or monthly plan before opening the work tabs. Driver routes share the passenger palette, cards, buttons, and status surfaces while keeping radar, active trip, wallet, and profile tasks distinct. Real driver screens do not present sample passengers, earnings, documents, vehicles, or reviews as live data; demo journeys are labeled and separated from the normal flow. Auth forms use a three-step indicator for phone, OTP, and identity. The DNI and identity lookup are demo-only until an approved RENIEC integration exists; never claim a real match. The emergency contact is optional. Auth and account forms use a 20 px gutter and keyboard-safe scrolling. Values map to React Native density-independent units.
 
 ## Elevation & Depth
 
@@ -87,11 +87,11 @@ Use rounded cards and controls from the landing's 14–28 px radius family. Role
 
 ### Foundational visual states
 
-Use high-contrast deep-teal actions, pale-teal secondary surfaces, visible disabled states, and a clear pressed response. Notices keep their existing semantic warning/error treatment. Keep demo controls in a visibly labeled demo section and keep them separate from real account status.
+Use high-contrast deep-teal actions, pale-teal secondary surfaces, visible disabled states, and a clear pressed response. Notices keep their existing semantic warning/error treatment. Keep the Demo action in the top bar and label sample identity or simulated service behavior in context.
 
 ### Buttons and actions
 
-The splash presents the Woki mark, landing tagline, and the same 1.9-second taxi pass on a full-width road; it exits after the landing splash's 3.15-second intro. Role selection presents “Pasajero” first and “Conductor” second with equal visual weight. The passenger choice enters the existing phone, OTP, and registration sequence. The driver choice starts a guided profile and document review, a clearly labeled approval demonstration, then payment-plan selection and the driver tabs. Keep primary actions explicit and role navigation clear.
+The splash presents the Woki mark, landing tagline, and the same 1.9-second taxi pass on a full-width road; it exits after the landing splash's 3.15-second intro. Role selection presents “Pasajero” first and “Conductor” second with equal visual weight. The passenger path enters DNI identity confirmation and a profile-photo step after phone verification. The driver choice starts a guided profile and document review, a clearly labeled approval demonstration, then payment-plan selection and the driver tabs. Keep primary actions explicit and role navigation clear.
 
 ### Navigation and data display
 
@@ -118,3 +118,12 @@ Keep Spanish copy direct and local. Use account data when available, show helpfu
 - **Do:** Reuse the landing page's exact Woki mark, color family, route language, and local city identity.
 - **Do:** Keep role selection before passenger sign-in and registration.
 - **Don't:** Present fabricated account details, trip offers, review scores, or money as live data.
+
+
+## Passenger demo behavior
+
+- Each passenger onboarding and ride step has a visible “Demo” action that advances with sample values. Keep it clearly labeled as a demonstration.
+- SMS delivery and RENIEC lookup are not connected. Tell the user when a screen uses demonstration behavior.
+- Destination suggestions currently filter the local place catalog; they are not live map geocoding.
+- On fare confirmation, keep payment, trip details, total offer, and “Buscar” in a fixed footer above the map. “Detalles” holds the optional description and trip needs.
+- Keep emergency contact signup to one optional contact and let the passenger skip it with a text action.

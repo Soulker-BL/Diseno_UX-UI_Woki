@@ -9,7 +9,7 @@ export const TERMS: [string, string][] = [
   ],
   [
     "3. Precio y pago",
-    "Antes de pedir el viaje ves un precio sugerido según la distancia, que puedes ajustar. Los conductores aceptan tu precio o hacen una contraoferta. Pagas directo al conductor, en efectivo o por Yape. La app no procesa pagos ni guarda dinero.",
+    "Antes de pedir el viaje ves un precio sugerido según la distancia, que puedes ajustar. Los conductores aceptan tu precio o hacen una contraoferta. Pagas directo al conductor, en efectivo, Yape o Plin. La app no procesa pagos ni guarda dinero.",
   ],
   [
     "4. PIN de inicio y de fin",

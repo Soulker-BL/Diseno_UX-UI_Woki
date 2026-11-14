@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import {
   Button,
@@ -31,6 +31,8 @@ import {
   type Place,
 } from "./data";
 import { PassengerAccount } from "./PassengerAccount";
+import { LegalTermsSheet } from "./LegalTermsSheet";
+import { PassengerDemoButton } from "./PassengerDemoButton";
 import { DrawerTrigger, PassengerDrawer } from "./PassengerDrawer";
 import { TERMS } from "./terms";
 import {
@@ -183,12 +185,20 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
   const { passenger: p, setPassenger: setP } = useApp();
   const [search, setSearch] = useState("");
   const [code, setCode] = useState("");
+  const otpInputs = useRef<({ focus: () => void } | null)[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
   const [profile, setProfile] = useState<Offer | null>(null);
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState("");
   const [read, setRead] = useState(false);
+  const [identityStage, setIdentityStage] = useState<"dni" | "verify" | "photo">("dni");
+  const [showTerms, setShowTerms] = useState(false);
+  const [identityMessage, setIdentityMessage] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [detailDescription, setDetailDescription] = useState("");
+  const [travelOptions, setTravelOptions] = useState<string[]>([]);
   const [priceDraft, setPriceDraft] = useState(p.price.toFixed(2));
   const patch = (value: Partial<typeof p>) =>
     setP((prev) => ({ ...prev, ...value }));
@@ -222,6 +232,27 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
     goPassenger("confirm");
   }
   function advanceDemo() {
+    if (screen === "phone") {
+      setP((current) => ({ ...current, user: { ...current.user, phone: "987654321" } }));
+      goPassenger("otp", true);
+      return;
+    }
+    if (screen === "otp") {
+      router.replace("/rol");
+      return;
+    }
+    if (screen === "register") {
+      if (identityStage === "dni") {
+        user({ dni: "00000000", first: "Erick", last: "B.", lastMaterno: "L." });
+        setIdentityMessage("");
+        setIdentityStage("verify");
+      } else if (identityStage === "verify") {
+        setIdentityStage("photo");
+      } else {
+        goPassenger("emergency", true);
+      }
+      return;
+    }
     const demoDestination = p.dest && !p.dest.outOfZone
       ? p.dest
       : PLACES.find((place) => place.name === "Terminal Terrestre")!;
@@ -299,7 +330,7 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
   }
   const back = () => {
     if (p.phase) return setDrawerOpen(true);
-    if (screen === "phone") return router.replace("/rol");
+    if (screen === "phone") return router.replace("/inicio");
     if (screen === "otp") return goPassenger("phone", true);
     if (screen === "register") return goPassenger("otp", true);
     if (screen === "terms") return goPassenger("register", true);
@@ -316,11 +347,15 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
   const isSearchingHome = !!search.trim();
   const homeResults = (isSearchingHome ? searchResults : destinationPool).slice(0, isSearchingHome ? 5 : 8);
   const mapBackground = ["home", "search", "confirm", "searching", "offers", "noOffers", "enroute", "arrived", "ontrip", "review"].includes(screen);
-  if (screen === "welcome" || screen === "role") return <Redirect href="/rol" />;
+  if (screen === "welcome") return <Redirect href="/inicio" />;
+  if (screen === "role") return <Redirect href="/rol" />;
   if (screen === "menu") return <Redirect href={p.authenticated ? "/pasajero/home" : "/rol"} />;
+  const screenTitle = screen === "register"
+    ? identityStage === "verify" ? "Confirma tu identidad" : identityStage === "photo" ? "Tu foto de perfil" : "Ingresa tu DNI"
+    : getPassengerScreenTitle(screen) ?? "Woki";
   return (
     <Screen
-      title={getPassengerScreenTitle(screen) ?? "Woki"}
+      title={screenTitle}
       destinationTitle={screen === "home"}
       softTitle={mapBackground}
       actionsBesideTitle={screen === "payment" || screen === "review"}
@@ -329,31 +364,42 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
       mapOrigin={p.origin}
       mapDest={p.dest?.pos}
       onMapOriginChange={(origin) => patch({ origin })}
+      left={screen === "home" && p.authenticated ? <DrawerTrigger onPress={() => setDrawerOpen(true)} /> : undefined}
       stickyContent={screen === "offers" ? <>
         <View style={passengerFlowStyles.offerHeading}><Text style={passengerFlowStyles.offerHeadingTitle}>Elige tu conductor</Text></View>
         <View style={passengerFlowStyles.cancelSearchRow}><Pressable accessibilityRole="button" accessibilityLabel="Cancelar búsqueda" onPress={reset} style={({ pressed }) => [passengerFlowStyles.cancelSearchButton, pressed && { opacity: 0.7 }]}><Text style={passengerFlowStyles.cancelSearchText}>Cancelar búsqueda</Text></Pressable></View>
         {p.dest && p.price > p.dest.price && <Notice>{`Tu oferta de ${soles(p.price)} está visible para los conductores.`}</Notice>}
       </> : undefined}
+      stickyFooter={screen === "confirm" && p.dest && !p.dest.outOfZone ? (
+        <>
+          <View style={passengerFlowStyles.fixedActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel={"Forma de pago: " + p.pay} onPress={() => setPaymentOpen(true)} style={passengerFlowStyles.fixedAction}><Text style={passengerFlowStyles.fixedActionText}>{p.pay}  ⌄</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Editar detalles del viaje" onPress={() => setDetailsOpen(true)} style={passengerFlowStyles.fixedAction}><Text style={passengerFlowStyles.fixedActionText}>Detalles</Text></Pressable>
+          </View>
+          <View style={passengerFlowStyles.fixedSearchRow}>
+            <View style={passengerFlowStyles.fixedFare}><Text style={passengerFlowStyles.fixedFareLabel}>TU OFERTA</Text><Text style={passengerFlowStyles.fixedFareValue}>{soles(p.price)}</Text></View>
+            <Button compact disabled={!p.reference.trim() || !!p.debt} onPress={() => goPassenger("searching")}>Buscar</Button>
+          </View>
+        </>
+      ) : undefined}
       right={
         <View style={headerOptionStyles.group}>
-          {isPassengerTripScreen(screen) && (
-            <HeaderOption label="Demo" demo onPress={advanceDemo} />
-          )}
+          {(isPassengerTripScreen(screen) || ["phone", "otp", "register"].includes(screen)) && <PassengerDemoButton onPress={advanceDemo} />}
           {["searching", "noOffers"].includes(screen) && (
             <HeaderOption label="Cancelar" danger onPress={reset} />
           )}
-          {p.authenticated && !isPassengerPublicScreen(screen) && (
+          {p.authenticated && !isPassengerPublicScreen(screen) && screen !== "home" && (
             <DrawerTrigger onPress={() => setDrawerOpen(true)} />
           )}
         </View>
       }
     >
-      {["phone", "otp", "register", "terms"].includes(screen) && (
+      {["phone", "otp", "register"].includes(screen) && (
         <AuthProgress screen={screen} />
       )}
       {screen === "phone" && (
         <>
-          <Text style={s.text}>Ingresa tu número para recibir un código de verificación.</Text>
+          <Text style={s.text}>Introduce tu número de teléfono. Te enviaremos un código para verificarlo.</Text>
           <Field
             label="Celular (+51)"
             keyboardType="phone-pad"
@@ -362,7 +408,7 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
             onChangeText={(v) => user({ phone: v.replace(/\D/g, "") })}
             placeholder="987654321"
           />
-          <View style={passengerFlowStyles.helper}><Text style={passengerFlowStyles.helperDot}>i</Text><Text style={passengerFlowStyles.helperText}>Te enviaremos un código de 6 dígitos para confirmar que el número es tuyo.</Text></View>
+          <Notice>Modo demostración: no se envían SMS. Usa Demo o introduce un código de 6 dígitos.</Notice>
           <Button
             disabled={!/^9\d{8}$/.test(p.user.phone)}
             onPress={() => {
@@ -376,17 +422,44 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
       )}
       {screen === "otp" && (
         <>
-          <Text style={s.text}>Escribe el código enviado al <Text style={{ fontWeight: "800" }}>+51 {p.user.phone}</Text>.</Text>
-          <Field
-            label="Código de 6 dígitos"
-            keyboardType="number-pad"
-            maxLength={6}
-            value={code}
-            onChangeText={(v) => setCode(v.replace(/\D/g, ""))}
-          />
+          <Text style={s.text}>Introduce el código de 6 dígitos para <Text style={{ fontWeight: "800" }}>+51 {p.user.phone}</Text>.</Text>
+          <View style={passengerFlowStyles.otpGroup} accessibilityLabel="Código de verificación de seis dígitos">
+            {Array.from({ length: 6 }, (_, index) => (
+              <TextInput
+                key={index}
+                ref={(node) => { otpInputs.current[index] = node; }}
+                accessibilityLabel={"Dígito " + (index + 1) + " de 6"}
+                accessibilityHint="Escribe el dígito del código recibido por mensaje."
+                keyboardType="number-pad"
+                autoComplete={index === 0 ? "sms-otp" : "off"}
+                textContentType={index === 0 ? "oneTimeCode" : undefined}
+                maxLength={6}
+                value={code[index] ?? ""}
+                onChangeText={(raw) => {
+                  const incoming = raw.replace(/\D/g, "");
+                  if (incoming.length > 1) {
+                    const nextCode = incoming.slice(0, 6);
+                    setCode(nextCode);
+                    otpInputs.current[Math.min(nextCode.length, 5)]?.focus();
+                    return;
+                  }
+                  const digit = incoming.slice(0, 1);
+                  const digits = code.split("");
+                  digits[index] = digit;
+                  const nextCode = digits.join("").slice(0, 6);
+                  setCode(nextCode);
+                  if (digit && index < 5) otpInputs.current[index + 1]?.focus();
+                }}
+                onKeyPress={({ nativeEvent }) => {
+                  if (nativeEvent.key === "Backspace" && !code[index] && index > 0) otpInputs.current[index - 1]?.focus();
+                }}
+                style={passengerFlowStyles.otpDigit}
+              />
+            ))}
+          </View>
           <Button
             disabled={code.length !== 6}
-            onPress={() => goPassenger("register")}
+            onPress={() => router.replace("/rol")}
           >
             Verificar
           </Button>
@@ -403,41 +476,41 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
       )}
       {screen === "register" && (
         <>
-          <Text style={s.text}>Completa tus datos para que los conductores puedan reconocerte durante el viaje.</Text>
-          <Photo uri={p.user.photo} onChange={(photo) => user({ photo })} />
-          <Field
-            label="Nombres"
-            value={p.user.first}
-            onChangeText={(first) => user({ first })}
-          />
-          <Field
-            label="Apellido paterno"
-            value={p.user.last}
-            onChangeText={(last) => user({ last })}
-          />
-          <Field
-            label="Apellido materno"
-            value={p.user.lastMaterno}
-            onChangeText={(lastMaterno) => user({ lastMaterno })}
-          />
-          <Field
-            label="DNI"
-            keyboardType="number-pad"
-            maxLength={8}
-            value={p.user.dni}
-            onChangeText={(v) => user({ dni: v.replace(/\D/g, "") })}
-          />
-          <Button
-            disabled={
-              p.user.first.trim().length < 2 ||
-              p.user.last.trim().length < 2 ||
-              p.user.lastMaterno.trim().length < 2 ||
-              p.user.dni.length !== 8
-            }
-            onPress={() => goPassenger("terms")}
-          >
-            Continuar
-          </Button>
+          {identityStage === "dni" && (
+            <>
+              <Text style={s.text}>Ingresa tu DNI para consultar tus datos de identidad.</Text>
+              <Field label="DNI" keyboardType="number-pad" maxLength={8} value={p.user.dni} onChangeText={(value) => user({ dni: value.replace(/\D/g, "").slice(0, 8) })} placeholder="8 dígitos" />
+              <Pressable accessibilityRole="button" onPress={() => setShowTerms(true)} style={passengerFlowStyles.legalInline}>
+                <Text style={passengerFlowStyles.legalInlineText}>Términos y condiciones · Privacidad</Text>
+              </Pressable>
+              {!!identityMessage && <Notice>{identityMessage}</Notice>}
+              <Button disabled={p.user.dni.length !== 8} onPress={() => setIdentityMessage("La consulta real a RENIEC todavía no está conectada. Usa Demo para ver el siguiente paso.")}>Consultar DNI</Button>
+            </>
+          )}
+          {identityStage === "verify" && (
+            <>
+              <Notice>Datos de demostración. No se realizó una consulta a RENIEC.</Notice>
+              <Card>
+                <Text style={s.heading}>¿Usted es Erick B. L.?</Text>
+                <Text style={s.muted}>Verifica que las iniciales coincidan con tu identidad.</Text>
+                <Button onPress={() => setIdentityStage("photo")}>Sí, soy yo</Button>
+                <Button tone="secondary" onPress={() => setIdentityStage("dni")}>No, revisar DNI</Button>
+              </Card>
+            </>
+          )}
+          {identityStage === "photo" && (
+            <>
+              <Card>
+                <Text style={s.heading}>Agrega una foto de perfil</Text>
+                <Text style={s.muted}>El conductor podrá reconocerte al llegar al punto de recojo.</Text>
+                <Photo uri={p.user.photo} onChange={(photo) => user({ photo })} />
+              </Card>
+              <Pressable accessibilityRole="button" onPress={() => setShowTerms(true)} style={passengerFlowStyles.legalInline}>
+                <Text style={passengerFlowStyles.legalInlineText}>Términos y condiciones · Privacidad</Text>
+              </Pressable>
+              <Button onPress={() => goPassenger("emergency")}>Continuar</Button>
+            </>
+          )}
         </>
       )}
       {screen === "terms" && (
@@ -466,39 +539,19 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
       )}
       {screen === "home" && (
         <>
-          <View style={passengerFlowStyles.pickupCard}>
-            <View style={passengerFlowStyles.pickupConnector} />
-            <View style={passengerFlowStyles.pickupIcon}><Svg width={18} height={23} viewBox="0 0 24 30"><Path d="M12 28S3.7 18.1 3.7 11.5a8.3 8.3 0 1 1 16.6 0C20.3 18.1 12 28 12 28Z" fill="#218e97"/><Circle cx="12" cy="11.5" r="3" fill="#fff"/></Svg></View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={passengerFlowStyles.pickupLabel}>PUNTO DE RECOJO</Text>
-              <Text style={passengerFlowStyles.pickupName}>Mi ubicación</Text>
-              <Text style={passengerFlowStyles.pickupDetail}>Jr. Lima, Chaupimarca</Text>
-            </View>
-          </View>
           <View style={passengerFlowStyles.destinationSearch}>
             <Svg width={20} height={20} viewBox="0 0 24 24"><Circle cx="10.8" cy="10.8" r="6.6" fill="none" stroke="#218e97" strokeWidth="2" /><Path d="m16 16 4.3 4.3" fill="none" stroke="#218e97" strokeWidth="2" strokeLinecap="round" /></Svg>
             <TextInput accessibilityLabel="Busca una dirección o lugar" value={search} onChangeText={setSearch} placeholder="Busca una dirección o lugar" placeholderTextColor="#7c9ca1" returnKeyType="search" style={passengerFlowStyles.destinationSearchInput} />
             {!!search && <Pressable accessibilityRole="button" accessibilityLabel="Borrar búsqueda" onPress={() => setSearch("")} style={passengerFlowStyles.clearSearch}><Text style={passengerFlowStyles.clearSearchText}>×</Text></Pressable>}
           </View>
-          <View style={passengerFlowStyles.sectionTitle}>
-            <Text style={passengerFlowStyles.sectionHeading}>{isSearchingHome ? "Resultados" : "Frecuentes y guardados"}</Text>
-            <Text style={passengerFlowStyles.sectionCount}>{homeResults.length}</Text>
-          </View>
-          {!isSearchingHome ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={passengerFlowStyles.frequentPlacesRow}>
-              {homeResults.map((place, index) => (
-                <Pressable key={`${place.name}-${index}`} accessibilityRole="button" accessibilityLabel={`Elegir destino ${place.name}, ${place.detail}`} onPress={() => pick(place)} style={({ pressed }) => [passengerFlowStyles.frequentPlaceChip, pressed && passengerFlowStyles.frequentPlaceChipPressed]}>
-                  <Text style={passengerFlowStyles.frequentPlacePin}>⌖</Text><Text numberOfLines={1} style={passengerFlowStyles.frequentPlaceLabel}>{place.name}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          ) : homeResults.map((place, index) => (
+          <Text style={passengerFlowStyles.sectionHeading}>{isSearchingHome ? "Resultados" : "Lugares frecuentes"}</Text>
+          {homeResults.map((place, index) => (
             <PlaceRow
-              key={`${place.name}-${index}`}
+              key={place.name + "-" + index}
               title={place.name}
-              subtitle={place.detail}
-              trailing="›"
-              label={`Elegir destino ${place.name}, ${place.detail}`}
+              subtitle={place.detail + " · " + place.km + " km · " + place.min + " min"}
+              trailing={place.outOfZone ? "Cobertura" : soles(place.price)}
+              label={"Elegir destino " + place.name + ", " + place.detail}
               onPress={() => pick(place)}
             />
           ))}
@@ -590,7 +643,7 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
                         style={passengerFlowStyles.fareInput}
                       />
                     </View>
-                    <Text style={passengerFlowStyles.fareHint}>{p.price > p.dest.price ? "Más posibilidades de encontrar conductores" : "Precio sugerido"}</Text>
+                    <Text style={[passengerFlowStyles.fareHint, p.price > p.dest.price && passengerFlowStyles.fareHintRaised]}>{p.price > p.dest.price ? "Más ofertas de conductores" : "Precio recomendado"}</Text>
                   </View>
                   <Pressable accessibilityRole="button" accessibilityLabel="Aumentar oferta un sol" onPress={() => { const amount = p.price + 1; setPriceDraft(amount.toFixed(2)); patch({ price: amount }); }} style={({ pressed }) => [passengerFlowStyles.fareStep, passengerFlowStyles.fareStepIncrease, pressed && { opacity: 0.75 }]}><Svg width={20} height={20} viewBox="0 0 18 18"><Path d="M9 3.5v11M3.5 9h11" stroke="#153b42" strokeWidth={2.5} strokeLinecap="round" /></Svg></Pressable>
                 </View>
@@ -600,22 +653,9 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
                 value={p.reference}
                 onChangeText={(reference) => patch({ reference })}
               />
-              <View style={passengerFlowStyles.paymentSection}>
-                <Text style={passengerFlowStyles.sectionHeading}>¿Cómo pagarás?</Text>
-                <View style={passengerFlowStyles.paymentOptions}>
-                  {(["Efectivo", "Yape"] as const).map((pay) => <PaymentMethod key={pay} method={pay} selected={p.pay === pay} onPress={() => patch({ pay })} />)}
-                </View>
-              </View>
+
             </>
           )}
-          <Button
-            disabled={!!p.dest.outOfZone || !p.reference.trim() || !!p.debt}
-            onPress={() => {
-              goPassenger("searching");
-            }}
-          >
-            Pedir taxi
-          </Button>
           {p.debt && (
             <Button tone="danger" onPress={() => goPassenger("debt")}>
               Paga tu deuda para solicitar un viaje
@@ -871,16 +911,35 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
           support={() => { setDrawerOpen(false); void openLink(waLink(SUPPORT_PHONE, "Hola, necesito ayuda con Woki.")); }}
         />
       )}
+      {paymentOpen && <Sheet title="Forma de pago" close={() => setPaymentOpen(false)}>
+        <Text style={s.muted}>Pagarás directamente al conductor al finalizar el viaje.</Text>
+        {(["Efectivo", "Yape", "Plin"] as const).map((method) => <PaymentMethod key={method} method={method} selected={p.pay === method} onPress={() => { patch({ pay: method }); setPaymentOpen(false); }} />)}
+      </Sheet>}
+      {detailsOpen && <Sheet title="Detalles del viaje" close={() => setDetailsOpen(false)}>
+        <Text style={s.muted}>Cuéntale al conductor qué necesitas para el recojo.</Text>
+        <Field label="Descripción (opcional)" value={detailDescription} onChangeText={setDetailDescription} placeholder="Ej. Llevo una maleta grande" multiline numberOfLines={3} maxLength={140} />
+        <View style={passengerFlowStyles.travelOptions}>
+          {["Con mascota", "Necesito apoyo de movilidad", "Mucho equipaje"].map((option) => {
+            const selected = travelOptions.includes(option);
+            return <Pressable key={option} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} onPress={() => setTravelOptions((current) => selected ? current.filter((item) => item !== option) : [...current, option])} style={[passengerFlowStyles.travelOption, selected && passengerFlowStyles.travelOptionSelected]}>
+              <Text style={[passengerFlowStyles.travelOptionText, selected && passengerFlowStyles.travelOptionTextSelected]}>{option}</Text>
+            </Pressable>;
+          })}
+        </View>
+        <Button onPress={() => { patch({ notes: [detailDescription.trim(), ...travelOptions].filter(Boolean).join(" · ") }); setDetailsOpen(false); }}>Guardar detalles</Button>
+      </Sheet>}
+      <LegalTermsSheet visible={showTerms} close={() => setShowTerms(false)} />
       <Confirm value={confirmation} close={() => setConfirmation(null)} />
     </Screen>
   );
 }
 
-function PaymentMethod({ method, selected, onPress }: { method: "Efectivo" | "Yape"; selected: boolean; onPress: () => void }) {
+function PaymentMethod({ method, selected, onPress }: { method: "Efectivo" | "Yape" | "Plin"; selected: boolean; onPress: () => void }) {
   const cash = method === "Efectivo";
+
   return (
-    <Pressable accessibilityRole="radio" accessibilityState={{ checked: selected }} accessibilityLabel={`Pagar con ${method}`} onPress={onPress} style={[passengerFlowStyles.paymentCard, selected && (cash ? passengerFlowStyles.paymentSelected : passengerFlowStyles.paymentYapeSelected)]}>
-      <View style={[passengerFlowStyles.paymentIcon, cash ? passengerFlowStyles.cashIcon : passengerFlowStyles.yapeIcon]}>
+    <Pressable accessibilityRole="radio" accessibilityState={{ checked: selected }} accessibilityLabel={`Pagar con ${method}`} onPress={onPress} style={[passengerFlowStyles.paymentCard, selected && (cash ? passengerFlowStyles.paymentSelected : method === "Yape" ? passengerFlowStyles.paymentYapeSelected : passengerFlowStyles.paymentPlinSelected)]}>
+      <View style={[passengerFlowStyles.paymentIcon, cash ? passengerFlowStyles.cashIcon : method === "Yape" ? passengerFlowStyles.yapeIcon : passengerFlowStyles.plinIcon]}>
         {cash ? (
           <Svg width={23} height={18} viewBox="0 0 24 18">
             <Rect x="1" y="2" width="22" height="14" rx="3" fill="none" stroke="#087f91" strokeWidth="1.8" />
@@ -888,11 +947,7 @@ function PaymentMethod({ method, selected, onPress }: { method: "Efectivo" | "Ya
             <Path d="M4 6h2M18 12h2" stroke="#087f91" strokeWidth="1.5" strokeLinecap="round" />
           </Svg>
         ) : (
-          <Svg width={21} height={23} viewBox="0 0 24 26" accessibilityLabel="Símbolo de pago móvil Yape">
-            <Rect x="5" y="1.8" width="14" height="22.4" rx="3" fill="none" stroke="#9117a0" strokeWidth="1.8" />
-            <Path d="M9.5 5h5M8.5 11h7m-2.4-2.4L15.5 11l-2.4 2.4" fill="none" stroke="#9117a0" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            <Circle cx="12" cy="20.5" r=".8" fill="#9117a0" />
-          </Svg>
+          <Text style={[passengerFlowStyles.paymentBrandGlyph, method === "Yape" ? passengerFlowStyles.yapeGlyph : passengerFlowStyles.plinGlyph]}>{method === "Yape" ? "Y" : "P"}</Text>
         )}
       </View>
       <View style={{ flex: 1, gap: 3 }}><Text style={passengerFlowStyles.paymentName}>{method}</Text><Text style={passengerFlowStyles.paymentSub}>{cash ? "Al finalizar" : "Transferencia"}</Text></View>
@@ -902,12 +957,12 @@ function PaymentMethod({ method, selected, onPress }: { method: "Efectivo" | "Ya
 }
 
 function AuthProgress({ screen }: { screen: string }) {
-  const steps = ["phone", "otp", "register", "terms"];
+  const steps = ["phone", "otp", "register"];
   const current = Math.max(0, steps.indexOf(screen));
-  const labels = ["Celular", "Verificación", "Tus datos", "Términos"];
+  const labels = ["Celular", "Código", "Identidad"];
   return (
     <View style={passengerFlowStyles.progressWrap} accessibilityLabel={`Paso ${current + 1} de ${steps.length}: ${labels[current]}`}>
-      <View style={passengerFlowStyles.progressTop}><Text style={passengerFlowStyles.progressStep}>PASO 0{current + 1} / 04</Text><Text style={passengerFlowStyles.progressLabel}>{labels[current]}</Text></View>
+      <View style={passengerFlowStyles.progressTop}><Text style={passengerFlowStyles.progressStep}>PASO 0{current + 1} / 03</Text><Text style={passengerFlowStyles.progressLabel}>{labels[current]}</Text></View>
       <View style={passengerFlowStyles.progressTrack}><View style={[passengerFlowStyles.progressFill, { width: `${((current + 1) / steps.length) * 100}%` }]} /></View>
     </View>
   );
@@ -923,6 +978,9 @@ const passengerFlowStyles = StyleSheet.create({
   helper: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 13, paddingVertical: 10, borderRadius: 13, backgroundColor: "#e5f7f9" },
   helperDot: { width: 20, height: 20, overflow: "hidden", textAlign: "center", textAlignVertical: "center", borderRadius: 10, color: "#fff", backgroundColor: "#218e97", fontSize: 12, fontWeight: "800" },
   helperText: { flex: 1, color: "#526e73", fontSize: 12, lineHeight: 17 },
+  legalInline: { alignSelf: "center", paddingVertical: 5 }, legalInlineText: { color: "#111", fontSize: 11, textDecorationLine: "underline" },
+  otpGroup: { flexDirection: "row", justifyContent: "space-between", gap: 7, marginVertical: 8 }, otpDigit: { flex: 1, maxWidth: 52, height: 58, borderRadius: 14, borderWidth: 1.5, borderColor: "#9edce1", backgroundColor: "#fff", color: "#111", fontSize: 24, fontWeight: "900", textAlign: "center" },
+  fixedActions: { flexDirection: "row", gap: 8, marginBottom: 8 }, fixedAction: { flex: 1, minHeight: 42, justifyContent: "center", alignItems: "center", borderRadius: 13, borderWidth: 1, borderColor: "#a9dfe3", backgroundColor: "#f5fcfc" }, fixedActionText: { color: "#111", fontSize: 12, fontWeight: "800" }, fixedSearchRow: { flexDirection: "row", gap: 10, alignItems: "center" }, fixedFare: { minWidth: 92, gap: 1 }, fixedFareLabel: { color: "#111", fontSize: 9, fontWeight: "900", letterSpacing: 0.8 }, fixedFareValue: { color: "#111", fontSize: 19, fontWeight: "900" }, travelOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, travelOption: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 18, borderWidth: 1, borderColor: "#bfe5e9", backgroundColor: "#fff" }, travelOptionSelected: { borderColor: "#087f91", backgroundColor: "#dff7f8" }, travelOptionText: { color: "#111", fontSize: 12, fontWeight: "700" }, travelOptionTextSelected: { color: "#005b66", fontWeight: "900" },
   pickupCard: { position: "relative", marginTop: 9, flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 17, backgroundColor: "#def5f7", borderWidth: 1, borderColor: "#bfe5e9" },
   pickupConnector: { position: "absolute", left: 31, bottom: "100%", width: 2, height: 12, backgroundColor: "#5bc5ce" },
   destinationSearch: { minHeight: 55, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 15, borderRadius: 28, backgroundColor: "#fff", shadowColor: "#0d5961", shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
@@ -936,11 +994,11 @@ const passengerFlowStyles = StyleSheet.create({
   sectionTitle: { marginTop: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   sectionHeading: { color: "#0d2f34", fontSize: 15, fontWeight: "800" },
   sectionCount: { minWidth: 24, paddingHorizontal: 7, paddingVertical: 3, textAlign: "center", overflow: "hidden", borderRadius: 10, backgroundColor: "#def5f7", color: "#087f91", fontSize: 10, fontWeight: "800" },
-  frequentPlacesRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2, paddingRight: 4 },
-  frequentPlaceChip: { minHeight: 44, maxWidth: 190, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 13, borderRadius: 22, borderWidth: 1, borderColor: "#c5e7e9", backgroundColor: "#fff" },
-  frequentPlaceChipPressed: { backgroundColor: "#e5f8f9", borderColor: "#218e97", transform: [{ scale: 0.97 }] },
-  frequentPlacePin: { color: "#087f91", fontSize: 18, fontWeight: "800" },
-  frequentPlaceLabel: { flexShrink: 1, color: "#0d3e45", fontSize: 12, fontWeight: "800" },
+
+
+
+
+
   tripDestination: { flexDirection: "row", gap: 14, padding: 15, borderRadius: 18, borderWidth: 1, borderColor: "#cbe9ec", backgroundColor: "#fff" },
   routeTimeline: { width: 16, alignItems: "center", paddingTop: 5, paddingBottom: 10 },
   routeOriginDot: { width: 9, height: 9, borderRadius: 5, borderWidth: 2, borderColor: "#218e97", backgroundColor: "#fff" },
@@ -950,9 +1008,9 @@ const passengerFlowStyles = StyleSheet.create({
   miniLabel: { color: "#36777d", fontSize: 10, fontWeight: "900", letterSpacing: 1 },
   destinationText: { marginTop: 2, color: "#0d2f34", fontSize: 15, lineHeight: 20, fontWeight: "800" },
   destinationMeta: { marginTop: 3, color: "#526e73", fontSize: 12 },
-  fareCard: { gap: 13, padding: 16, borderRadius: 20, borderWidth: 1, borderColor: "#087f91", backgroundColor: "#087f91", shadowColor: "#005b66", shadowOpacity: 0.17, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  fareCard: { gap: 13, padding: 16, borderRadius: 20, borderWidth: 1.5, borderColor: "#58cbd3", backgroundColor: "#e7f8f9", shadowColor: "#087f91", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   fareHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  fareLabel: { color: "#fff", fontSize: 10, fontWeight: "900", letterSpacing: 1.2 },
+  fareLabel: { color: "#111", fontSize: 10, fontWeight: "900", letterSpacing: 1.2 },
   recommendedBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 11, backgroundColor: "#d6fbf8" },
   recommendedText: { color: "#005b66", fontSize: 10, fontWeight: "900" },
   fareControls: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
@@ -961,12 +1019,12 @@ const passengerFlowStyles = StyleSheet.create({
   fareStepOnBrand: { borderColor: "#6ad5de", backgroundColor: "#f4ffff" },
   fareStepIncrease: { borderColor: "#ffd26f", backgroundColor: "#ffd26f" },
   fareStepDisabled: { borderColor: "#dcebed", backgroundColor: "#f5fbfc" },
-  fareAmount: { color: "#fff", fontSize: 33, fontWeight: "900", letterSpacing: -0.6 }, currency: { color: "#b9f8f5", fontSize: 18, fontWeight: "900" }, fareInput: { width: 110, padding: 0, color: "#fff", fontSize: 30, fontWeight: "900", letterSpacing: -0.5, textAlign: "center" },
-  fareHint: { color: "#e0ffff", fontSize: 10, lineHeight: 14, textAlign: "center", fontWeight: "800" },
+  fareAmount: { color: "#111", fontSize: 33, fontWeight: "900", letterSpacing: -0.6 }, currency: { color: "#111", fontSize: 18, fontWeight: "900" }, fareInput: { width: 110, padding: 0, color: "#111", fontSize: 30, fontWeight: "900", letterSpacing: -0.5, textAlign: "center" },
+  fareHint: { color: "#111", fontSize: 11, lineHeight: 15, textAlign: "center", fontWeight: "800" }, fareHintRaised: { color: "#087f91" },
   paymentSection: { gap: 10 }, paymentOptions: { flexDirection: "row", gap: 10 },
   paymentCard: { flex: 1, minWidth: 0, minHeight: 78, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, paddingVertical: 10, borderWidth: 1.5, borderColor: "#cbe9ec", borderRadius: 16, backgroundColor: "#fff" },
-  paymentSelected: { borderColor: "#138f9b", backgroundColor: "#effbfc" }, paymentYapeSelected: { borderColor: "#7423b6", backgroundColor: "#fbf6ff" },
-  paymentIcon: { width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 12 }, cashIcon: { backgroundColor: "#def5f7" }, yapeIcon: { backgroundColor: "#faedfb" },
+  paymentSelected: { borderColor: "#138f9b", backgroundColor: "#effbfc" }, paymentYapeSelected: { borderColor: "#7423b6", backgroundColor: "#fbf6ff" }, paymentPlinSelected: { borderColor: "#087f91", backgroundColor: "#f0fbfc" },
+  paymentIcon: { width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 12 }, cashIcon: { backgroundColor: "#def5f7" }, yapeIcon: { backgroundColor: "#faedfb" }, plinIcon: { backgroundColor: "#dff7f0" }, paymentBrandGlyph: { fontSize: 17, fontWeight: "900" }, yapeGlyph: { color: "#7423b6" }, plinGlyph: { color: "#087f91" },
   paymentName: { color: "#173b36", fontSize: 12, fontWeight: "800" }, paymentSub: { color: "#74877f", fontSize: 9 },
   radio: { width: 15, height: 15, alignItems: "center", justifyContent: "center", borderRadius: 8, borderWidth: 1.4, borderColor: "#b8c9c2" }, radioSelected: { borderColor: "#218e97" }, radioDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#218e97" },
   searchingCard: { flexDirection: "row", alignItems: "center", gap: 12, padding: 15, borderRadius: 18, backgroundColor: "#fff", borderWidth: 1, borderColor: "#b6edf0" },

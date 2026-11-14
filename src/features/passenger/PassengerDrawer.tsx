@@ -1,7 +1,6 @@
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 import type { PassengerScreenName } from "./navigation";
-import { BrandLogo } from "./BrandLogo";
 
 export function DrawerTrigger({ onPress }: { onPress: () => void }) {
   return (
@@ -32,7 +31,7 @@ export function PassengerDrawer({ close, onNavigate, name, phone, photo, activeS
       <View style={styles.overlay}>
         <Pressable accessibilityRole="button" accessibilityLabel="Cerrar menú" onPress={close} style={styles.scrim} />
         <View style={styles.panel}>
-          <View style={styles.topLine}><BrandLogo color="#005b66" size={24} /><Pressable accessibilityRole="button" accessibilityLabel="Cerrar menú" onPress={close} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable></View>
+          <View style={styles.topLine}><Text style={styles.sectionLabel}>MENÚ</Text><Pressable accessibilityRole="button" accessibilityLabel="Cerrar menú" onPress={close} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable></View>
           <View style={styles.identity}>
             <View style={styles.avatar}>
               {photo ? <Image accessibilityLabel="Tu foto de perfil" source={{ uri: photo }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{(name || "P").slice(0, 1).toUpperCase()}</Text>}
@@ -48,10 +47,10 @@ export function PassengerDrawer({ close, onNavigate, name, phone, photo, activeS
             <View style={styles.linkGroup}>
               {safetyItems.map(([target, label], index) => <DrawerLink key={target} target={target} label={label} active={activeScreen === target} onPress={() => onNavigate(target)} last={index === safetyItems.length - 1} />)}
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Quiero ser conductor. Descubre beneficios y requisitos" onPress={() => onNavigate("driverInfo")} style={({ pressed }) => [styles.driverCard, pressed && styles.rowPressed]}>
-              <View style={styles.driverIcon}><DrawerIcon name="driverInfo" color="#005b66" /></View>
-              <View style={{ flex: 1, gap: 3 }}><Text style={styles.driverTitle}>Quiero ser conductor</Text><Text style={styles.driverSubtitle}>Beneficios y requisitos</Text></View>
-              <Text style={styles.driverChevron}>›</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Quiero ser conductor. Descubre beneficios y requisitos" onPress={() => onNavigate("driverInfo")} style={({ pressed }) => [styles.link, pressed && styles.rowPressed]}>
+              <View style={styles.iconTile}><DrawerIcon name="driverInfo" color="#168b9a" /></View>
+              <Text style={styles.linkLabel}>Quiero ser conductor</Text>
+              <Text style={styles.chevron}>›</Text>
             </Pressable>
           </ScrollView>
           <View style={styles.footer}>
@@ -109,5 +108,5 @@ const styles = StyleSheet.create({
   iconTile: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: "#e1f5f6" }, iconTileActive: { backgroundColor: "#087f91" },
   itemDivider: { height: 1, marginLeft: 48, marginRight: 9, backgroundColor: "#edf4f5" }, linkLabel: { flex: 1, color: "#0d2f34", fontSize: 13, fontWeight: "600" }, linkLabelActive: { color: "#005b66", fontWeight: "800" }, chevron: { color: "#53bdc7", fontSize: 21 }, chevronActive: { color: "#087f91" },
   footer: { paddingTop: 11, borderTopWidth: 1, borderTopColor: "#cbe9ec", gap: 3 }, footerAction: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 5, borderRadius: 13 }, logoutTile: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: "#fff0f0" }, logoutText: { flex: 1, color: "#b54141", fontSize: 13, fontWeight: "700" },
-  driverCard: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 11, paddingVertical: 10, borderRadius: 17, backgroundColor: "#087f91", borderWidth: 1, borderColor: "#65d9dd" }, driverIcon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "#d6fbf8" }, driverTitle: { color: "#fff", fontSize: 13, fontWeight: "900" }, driverSubtitle: { color: "#d7f5f7", fontSize: 11, fontWeight: "600" }, driverChevron: { color: "#ffd26f", fontSize: 26, fontWeight: "800" },
+
 });

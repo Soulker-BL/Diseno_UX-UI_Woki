@@ -18,6 +18,7 @@ import { PLACES, SUPPORT_PHONE, soles, waLink } from "./data";
 import { getPassengerScreenTitle, goPassenger, type PassengerScreenName } from "./navigation";
 import { TERMS } from "./terms";
 import { DrawerTrigger, PassengerDrawer } from "./PassengerDrawer";
+import { PassengerDemoButton } from "./PassengerDemoButton";
 
 export function PassengerAccount({ screen }: { screen: PassengerScreenName }) {
   const { passenger: p, setPassenger: setP } = useApp();
@@ -64,7 +65,7 @@ export function PassengerAccount({ screen }: { screen: PassengerScreenName }) {
     router.replace("/");
   };
   return (
-    <Screen title={getPassengerScreenTitle(screen) ?? "Mi cuenta"} back={back} right={!onboarding ? <DrawerTrigger onPress={() => setDrawerOpen(true)} /> : undefined}>
+    <Screen title={getPassengerScreenTitle(screen) ?? "Mi cuenta"} back={back} right={onboarding ? <PassengerDemoButton onPress={() => { setP((prev) => ({ ...prev, authenticated: true })); home(); }} /> : <DrawerTrigger onPress={() => setDrawerOpen(true)} />}>
       {!!message && <Notice>{message}</Notice>}
       {screen === "menu" && (
         <>
@@ -237,8 +238,8 @@ export function PassengerAccount({ screen }: { screen: PassengerScreenName }) {
       )}
       {(screen === "contacts" || screen === "emergency") && (
         <>
-          <View style={styles.emergencyIntro}><Text style={styles.emergencyIcon}>✚</Text><View style={{ flex: 1, gap: 3 }}><Text style={styles.emergencyTitle}>Viaja con una red de apoyo</Text><Text style={styles.emergencyCopy}>Agrega hasta dos personas para contactarlas fácilmente durante el viaje.</Text></View></View>
-          {contacts.map((contact, index) => (
+          <View style={styles.emergencyIntro}><Text style={styles.emergencyIcon}>✚</Text><View style={{ flex: 1, gap: 3 }}><Text style={styles.emergencyTitle}>Viaja con una red de apoyo</Text><Text style={styles.emergencyCopy}>Añade una persona de confianza para poder contactarla durante el viaje.</Text></View></View>
+          {contacts.slice(0, onboarding ? 1 : 2).map((contact, index) => (
             <Card key={index} compact>
               <Text style={s.heading}>Contacto {index + 1}</Text>
               <Field
@@ -255,18 +256,10 @@ export function PassengerAccount({ screen }: { screen: PassengerScreenName }) {
                   updateContact(index, { phone: v.replace(/\D/g, "") })
                 }
               />
-              <Button
-                compact
-                tone="plain"
-                onPress={() =>
-                  setContacts((list) => list.filter((_, i) => i !== index))
-                }
-              >
-                Quitar contacto
-              </Button>
+              {!onboarding && <Button compact tone="plain" onPress={() => setContacts((list) => list.filter((_, i) => i !== index))}>Quitar contacto</Button>}
             </Card>
           ))}
-          {contacts.length < 2 && (
+          {!onboarding && contacts.length < 2 && (
             <Button
               compact
               tone="secondary"
@@ -287,12 +280,10 @@ export function PassengerAccount({ screen }: { screen: PassengerScreenName }) {
               home();
             }}
           >
-            Guardar contactos
+            Guardar contacto de emergencia
           </Button>
           {onboarding && (
-            <Button compact tone="plain" onPress={() => { setP((prev) => ({ ...prev, authenticated: true })); home(); }}>
-              Omitir por ahora
-            </Button>
+            <Pressable accessibilityRole="button" onPress={() => { setP((prev) => ({ ...prev, authenticated: true })); home(); }} style={styles.skipLink}><Text style={styles.skipLinkText}>Omitir por ahora</Text></Pressable>
           )}
         </>
       )}
@@ -508,6 +499,7 @@ const styles = StyleSheet.create({
   profileRatingSummary: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: -3 }, profileRatingStars: { color: "#c87900", fontSize: 17, fontWeight: "900" }, profileRatingValue: { color: "#634600", fontSize: 14, fontWeight: "900" }, profileRatingCount: { color: "#526e73", fontSize: 11, fontWeight: "700" },
   profileSectionHeader: { flexDirection: "row", alignItems: "center", gap: 8 }, profileSectionTitle: { color: "#0d3e45", fontSize: 15, fontWeight: "900" }, profileReviewItem: { gap: 4, padding: 10, borderRadius: 13, backgroundColor: "#f4fafb" }, profileReviewTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 7 }, profileReviewDestination: { flex: 1, color: "#16464d", fontSize: 12, fontWeight: "800" }, profileReviewStars: { color: "#c87900", fontSize: 11, fontWeight: "900" }, profileReviewText: { color: "#526e73", fontSize: 12, lineHeight: 17 }, profileEmptyCopy: { color: "#526e73", fontSize: 12, lineHeight: 18 }, preferenceOptions: { flexDirection: "row", flexWrap: "wrap", gap: 7 }, preferenceChip: { minHeight: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 12, borderRadius: 22, borderWidth: 1, borderColor: "#c4e4e7", backgroundColor: "#fff" }, preferenceChipSelected: { borderColor: "#087f91", backgroundColor: "#e1f7f8" }, preferenceLabel: { color: "#446c72", fontSize: 11, fontWeight: "700" }, preferenceLabelSelected: { color: "#005b66", fontWeight: "900" },
   privacyIntro: { gap: 7, padding: 18, borderRadius: 20, backgroundColor: "#087f91" }, privacyEyebrow: { color: "#baf3f4", fontSize: 10, fontWeight: "900", letterSpacing: 1 }, privacyTitle: { color: "#fff", fontSize: 21, lineHeight: 27, fontWeight: "900" }, privacyCopy: { color: "#e2fbfc", fontSize: 12, lineHeight: 18, fontWeight: "600" },
+  skipLink: { alignSelf: "center", minHeight: 44, justifyContent: "center", paddingHorizontal: 12 }, skipLinkText: { color: "#111111", fontSize: 13, fontWeight: "700", textDecorationLine: "underline" },
   emergencyIntro: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 17, borderWidth: 1, borderColor: "#98e0e4", backgroundColor: "#def8f9" }, emergencyIcon: { width: 38, height: 38, borderRadius: 13, overflow: "hidden", textAlign: "center", textAlignVertical: "center", color: "#087f91", backgroundColor: "#fff", fontSize: 20, fontWeight: "900" }, emergencyTitle: { color: "#075c66", fontSize: 14, fontWeight: "900" }, emergencyCopy: { color: "#36777d", fontSize: 11, lineHeight: 15, fontWeight: "600" },
   driverHero: { gap: 9, overflow: "hidden", padding: 20, borderRadius: 23, backgroundColor: "#087f91", borderWidth: 1, borderColor: "#65d9dd" },
   driverEyebrow: { color: "#ffd26f", fontSize: 10, fontWeight: "900", letterSpacing: 1.3 },
