@@ -1,0 +1,120 @@
+---
+version: alpha
+name: WOKI Passenger
+description: A WOKI brand splash and landing-inspired role entry followed by consistent passenger and driver experiences.
+colors:
+  brand: "#218e97"
+  deep: "#005b66"
+  aqua: "#65d9dd"
+  mist: "#73b6bd"
+  paper: "#f5fbfc"
+  map: "#eaf7f8"
+  map-road: "#c8e9ed"
+  ink: "#0d2f34"
+  pin: "#f5a524"
+typography:
+  sans:
+    fontFamily: "system-ui, sans-serif"
+  mono:
+    fontFamily: "ui-monospace, monospace"
+rounded:
+  sm: "12px"
+  md: "17px"
+  lg: "23px"
+spacing:
+  compact: "8px"
+  control-gap: "14px"
+  card-padding: "16px"
+  screen-gutter: "20px"
+components:
+  button:
+    height: "54px"
+    radius: "15px"
+  card:
+    radius: "18px"
+    border: "1px solid #bfe5e9"
+  input:
+    height: "54px"
+    radius: "14px"
+  role-card:
+    radius: "19px"
+    min-height: "92px"
+---
+
+# WOKI Passenger Design System
+
+## Overview
+
+### Creative North Star
+
+Use the landing page and brand manual as identity references, not as a screen template. The app opens with the landing-matched Woki logo, tagline, and passing taxi animation, then a concise role choice. After registration, keep the map as the primary surface and place booking and trip controls in a focused sheet above it.
+
+### Product context and register
+
+- **Audience and primary job:** People in Cerro de Pasco who want to request a taxi, negotiate a fare, and follow their trip.
+- **Target market(s) and evidence:** Cerro de Pasco, Peru; the local landing page and current app data identify the city and destinations.
+- **Locale(s) and language policy:** Spanish (Peru), with soles formatted by the existing app.
+- **Usage scene:** Mobile use, often outdoors and time-sensitive; keep the role choice, next action, fare, and pickup details easy to scan.
+- **Register:** Product interface with the landing page's confident brand expression.
+- **Memorable signature:** The Woki location-pin “i”, animated taxi on a moving road, and the deep-to-cyan landing gradient.
+- **Restraint:** Keep the splash logo-only and role choice concise. Keep booking sheets focused, compact, and readable over the map.
+- **Anti-references:** Generic ride-hailing dashboards, unrelated stock imagery, and repeated large demo controls in the main journey.
+- **Token ownership/runtime mapping:** `src/components/ui.tsx` owns the Woki palette and shared controls. `PassengerTheme` applies the same Woki surfaces to passenger and driver routes. `SplashScreen.tsx` mirrors the landing entrance with the Woki mark, “Tu taxi urbano, más cerca” tagline, gradient, and moving taxi on a full-width road. `WelcomeScreen.tsx` keeps the role choice focused without a duplicate route illustration.
+
+## Colors
+
+Use the manual and local Woki landing values: brand cyan `#218e97`, deep teal `#005b66`, aqua `#65d9dd`, mist `#73b6bd`, paper `#f5fbfc`, ink `#0d2f34`, pale cyan `#def5f7`, and warm pin yellow `#f5a524`. The entry surface uses a deep-to-cyan gradient with white type; passenger task screens use bright, light-cyan surfaces and white cards. Cyan carries the route and primary action; yellow marks destinations and selected ratings.
+
+`passengerPalette` in `src/components/ui.tsx` is the runtime owner for shared Woki controls across passenger and driver routes. The splash and role selection use the landing page's deep-to-cyan gradient and the white Woki mark; both role choices share equal white cards with cyan icon surfaces. Ride screens use an illustrated map behind focused sheets.
+
+## Typography
+
+The brand manual and landing use Open Sans. The mobile project currently has no bundled Open Sans font that covers Android, iOS, and web; use the platform sans-serif fallback until a cross-platform font asset is added. Use bold display text sparingly, short sentence-case labels, and clear numeric pricing.
+
+## Layout
+
+The role screen uses a compact brand hero and two equal role choices. After passenger account setup, the map fills the viewport and a bottom sheet carries search, saved places, fare, payment, offers, and trip status. Driver registration collects identity and vehicle details, uploads required documents, shows review status, then asks for a commission or monthly plan before opening the work tabs. Driver routes share the passenger palette, cards, buttons, and status surfaces while keeping radar, active trip, wallet, and profile tasks distinct. Real driver screens do not present sample passengers, earnings, documents, vehicles, or reviews as live data; demo journeys are labeled and separated from the normal flow. Auth forms separate paternal and maternal surnames and retain the existing DNI field and four-step passenger signup flow. Auth and account forms use a 20 px gutter and keyboard-safe scrolling. Values map to React Native density-independent units.
+
+## Elevation & Depth
+
+Map surfaces and raised bottom sheets provide the main depth. Passenger task screens use fine teal-gray borders, restrained shadows, and light surfaces. Avoid layering cards inside cards unless the task has a distinct sub-panel.
+
+## Shapes
+
+Use rounded cards and controls from the landing's 14–28 px radius family. Role choices use 19 px corners; fields use 14 px; buttons use 15 px corners. Use the Woki pin shape for the logo and small location markers.
+
+## Components
+
+### Foundational visual states
+
+Use high-contrast deep-teal actions, pale-teal secondary surfaces, visible disabled states, and a clear pressed response. Notices keep their existing semantic warning/error treatment. Keep demo controls in a visibly labeled demo section and keep them separate from real account status.
+
+### Buttons and actions
+
+The splash presents the Woki mark, landing tagline, and the same 1.9-second taxi pass on a full-width road; it exits after the landing splash's 3.15-second intro. Role selection presents “Pasajero” first and “Conductor” second with equal visual weight. The passenger choice enters the existing phone, OTP, and registration sequence. The driver choice starts a guided profile and document review, a clearly labeled approval demonstration, then payment-plan selection and the driver tabs. Keep primary actions explicit and role navigation clear.
+
+### Navigation and data display
+
+Keep route titles and back navigation. Authenticated passenger screens share a top-right hamburger that opens the side account drawer. Do not repeat the WOKI-city eyebrow on booking and ride screens; let the map and location data carry the context.
+
+### Forms and overlays
+
+Continue to use the existing React Native fields, validation, confirmation, and bottom-sheet components. Driver registration review must show an estimated wait, provide distinct approve and SOAT correction demos, and prevent the driver tabs from opening until documents are approved and a payment plan is selected. Do not allow payment-plan changes while an outstanding balance exists.
+
+### Iconography
+
+Use the location-pin “i” logo from the brand manual, simple outline passenger/car symbols, and compact route markers. Keep visible labels alongside icon actions.
+
+### Motion
+
+Use restrained pressed feedback. Any future route or car motion should respect reduced motion and communicate progress, not decorate every screen.
+
+### Content and data visualization
+
+Keep Spanish copy direct and local. Use account data when available, show helpful empty states when it is not, and use the existing soles formatter for monetary values.
+
+## Do's and Don'ts
+
+- **Do:** Reuse the landing page's exact Woki mark, color family, route language, and local city identity.
+- **Do:** Keep role selection before passenger sign-in and registration.
+- **Don't:** Present fabricated account details, trip offers, review scores, or money as live data.
