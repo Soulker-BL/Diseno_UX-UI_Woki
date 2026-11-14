@@ -14,7 +14,7 @@ export function RoleSelectionScreen() {
     <PassengerTheme>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.screen}>
         <View style={styles.hero}>
-          <View style={styles.brand}><BrandLogo color="#fff" pinColor="#f5a524" size={30} /><PassengerDemoButton onPress={passengerRoute} /></View>
+          <View style={styles.brand}><BrandLogo color="#fff" size={36} /><PassengerDemoButton onPress={passengerRoute} /></View>
           <Text accessibilityRole="header" style={styles.title}>¿Cómo quieres continuar?</Text>
           <Text style={styles.subtitle}>Elige cómo usar Woki. Puedes cambiar de modo más adelante.</Text>
         </View>

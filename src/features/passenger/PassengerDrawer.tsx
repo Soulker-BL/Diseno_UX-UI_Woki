@@ -31,7 +31,7 @@ export function PassengerDrawer({ close, onNavigate, name, phone, photo, activeS
       <View style={styles.overlay}>
         <Pressable accessibilityRole="button" accessibilityLabel="Cerrar menú" onPress={close} style={styles.scrim} />
         <View style={styles.panel}>
-          <View style={styles.topLine}><Text style={styles.sectionLabel}>MENÚ</Text><Pressable accessibilityRole="button" accessibilityLabel="Cerrar menú" onPress={close} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable></View>
+          <View style={[styles.topLine, styles.topLineEnd]}><Pressable accessibilityRole="button" accessibilityLabel="Cerrar menú" onPress={close} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable></View>
           <View style={styles.identity}>
             <View style={styles.avatar}>
               {photo ? <Image accessibilityLabel="Tu foto de perfil" source={{ uri: photo }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{(name || "P").slice(0, 1).toUpperCase()}</Text>}
@@ -47,11 +47,10 @@ export function PassengerDrawer({ close, onNavigate, name, phone, photo, activeS
             <View style={styles.linkGroup}>
               {safetyItems.map(([target, label], index) => <DrawerLink key={target} target={target} label={label} active={activeScreen === target} onPress={() => onNavigate(target)} last={index === safetyItems.length - 1} />)}
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Quiero ser conductor. Descubre beneficios y requisitos" onPress={() => onNavigate("driverInfo")} style={({ pressed }) => [styles.link, pressed && styles.rowPressed]}>
-              <View style={styles.iconTile}><DrawerIcon name="driverInfo" color="#168b9a" /></View>
-              <Text style={styles.linkLabel}>Quiero ser conductor</Text>
-              <Text style={styles.chevron}>›</Text>
-            </Pressable>
+            <Text style={styles.sectionLabel}>CONDUCTOR</Text>
+            <View style={styles.linkGroup}>
+              <DrawerLink target="driverInfo" label="Quiero ser conductor" active={activeScreen === "driverInfo"} onPress={() => onNavigate("driverInfo")} last />
+            </View>
           </ScrollView>
           <View style={styles.footer}>
             <Pressable accessibilityRole="button" onPress={support} style={({ pressed }) => [styles.footerAction, pressed && styles.rowPressed]}><View style={styles.iconTile}><DrawerIcon name="support" color="#087f91" /></View><Text style={styles.linkLabel}>Ayuda y soporte</Text><Text style={styles.chevron}>›</Text></Pressable>
@@ -98,7 +97,7 @@ const styles = StyleSheet.create({
   hamburgerLine: { width: 18, height: 2, borderRadius: 2, backgroundColor: "#005b66" },
   overlay: { flex: 1, flexDirection: "row", backgroundColor: "#0d2f3488" }, scrim: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
   panel: { width: "86%", maxWidth: 360, height: "100%", backgroundColor: "#f3fbfc", paddingHorizontal: 18, paddingTop: 24, paddingBottom: 18, borderRightWidth: 1, borderRightColor: "#d6eef0" },
-  topLine: { height: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, brand: { color: "#005b66", fontSize: 17, fontWeight: "900", letterSpacing: 1.5 },
+  topLine: { height: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, topLineEnd: { justifyContent: "flex-end" }, brand: { color: "#005b66", fontSize: 17, fontWeight: "900", letterSpacing: 1.5 },
   close: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#def5f7" }, closeText: { color: "#005b66", fontSize: 25, lineHeight: 27 },
   identity: { minHeight: 64, marginTop: 16, marginBottom: 17, flexDirection: "row", alignItems: "center", gap: 13, paddingHorizontal: 2 },
   avatar: { width: 50, height: 50, overflow: "hidden", borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderWidth: 2, borderColor: "#8cdee3" }, avatarImage: { width: 50, height: 50 }, avatarText: { color: "#087f91", fontSize: 20, fontWeight: "800" },

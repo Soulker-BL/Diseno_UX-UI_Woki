@@ -150,10 +150,10 @@ export function Screen({
   back,
   right,
   left,
+  panelActions,
   children,
   mapBackground = false,
   stickyContent,
-  stickyFooter,
   destinationTitle = false,
   softTitle = false,
   actionsBesideTitle = false,
@@ -165,10 +165,10 @@ export function Screen({
   back?: () => void;
   right?: ReactNode;
   left?: ReactNode;
+  panelActions?: ReactNode;
   children: ReactNode;
   mapBackground?: boolean;
   stickyContent?: ReactNode;
-  stickyFooter?: ReactNode;
   destinationTitle?: boolean;
   softTitle?: boolean;
   actionsBesideTitle?: boolean;
@@ -179,6 +179,7 @@ export function Screen({
   const palette = usePalette();
   const passenger = useContext(UiThemeContext) === "passenger";
   const [mapPanelCollapsed, setMapPanelCollapsed] = useState(false);
+  const [panelHeight, setPanelHeight] = useState(0);
   if (mapBackground && passenger) {
     return (
       <KeyboardAvoidingView style={[s.screen, { backgroundColor: palette.map }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -188,8 +189,8 @@ export function Screen({
           {!actionsBesideTitle && right}
         </View>
         {!mapPanelCollapsed ? (
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={mapScreenStyles.scroll} contentContainerStyle={[mapScreenStyles.mapContent, !!stickyFooter && mapScreenStyles.mapContentWithFooter]}>
-              <View style={[mapScreenStyles.panel, !!stickyContent && mapScreenStyles.panelScrollable]}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={mapScreenStyles.scroll} contentContainerStyle={mapScreenStyles.mapContent}>
+              <View onLayout={({ nativeEvent }) => setPanelHeight(nativeEvent.layout.height)} style={[mapScreenStyles.panel, !!stickyContent && mapScreenStyles.panelScrollable]}>
               <Pressable accessibilityRole="button" accessibilityLabel="Ocultar panel para ver el mapa completo" onPress={() => setMapPanelCollapsed(true)} style={mapScreenStyles.handleTouch}><View style={mapScreenStyles.handle} /></Pressable>
               {destinationTitle || softTitle ? <View style={mapScreenStyles.destinationHeader}>
                 <View style={mapScreenStyles.destinationTitleGroup}>
@@ -212,7 +213,7 @@ export function Screen({
             <View style={mapScreenStyles.handle} /><Text style={mapScreenStyles.expandLabel}>Mostrar {title.toLowerCase()}</Text>
           </Pressable>
         )}
-        {stickyFooter && <View style={mapScreenStyles.stickyFooter}>{stickyFooter}</View>}
+        {!mapPanelCollapsed && panelActions && <View style={[mapScreenStyles.panelActions, { bottom: panelHeight + 20 }]}>{panelActions}</View>}
       </KeyboardAvoidingView>
     );
   }
@@ -261,12 +262,11 @@ const screenStyles = StyleSheet.create({
 const mapScreenStyles = StyleSheet.create({
   topBar: { position: "absolute", zIndex: 3, top: 12, left: 16, right: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   leftActions: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
-  stickyFooter: { position: "absolute", zIndex: 4, left: 12, right: 12, bottom: 12, padding: 12, gap: 9, borderRadius: 20, borderWidth: 1, borderColor: "#bfe5e9", backgroundColor: "#fffffff5", shadowColor: "#0d2f34", shadowOpacity: 0.14, shadowRadius: 15, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+  panelActions: { position: "absolute", zIndex: 5, left: 16, right: 16, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   backButton: { width: 44, height: 44, borderRadius: 16, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#d9e7e0", backgroundColor: "#ffffffed", shadowColor: "#123b37", shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   backGlyph: { color: "#005b66", fontSize: 33, lineHeight: 36, marginTop: -4 },
   scroll: { flex: 1 },
   mapContent: { flexGrow: 1, justifyContent: "flex-end", paddingTop: 70, paddingHorizontal: 12, paddingBottom: 12 },
-  mapContentWithFooter: { paddingBottom: 168 },
   panel: { maxHeight: "88%", paddingHorizontal: 19, paddingTop: 9, paddingBottom: 20, borderRadius: 28, borderWidth: 1, borderColor: "#ffffff", backgroundColor: "rgba(255,255,255,0.96)", shadowColor: "#0d2f34", shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: -5 }, elevation: 8 },
   panelScrollable: { flex: 1, minHeight: 0 }, innerScroll: { flex: 1, minHeight: 0 }, innerContent: { gap: 9, paddingBottom: 3 },
   handleTouch: { alignSelf: "center", width: 72, height: 44, alignItems: "center", justifyContent: "center", marginBottom: 0 },
@@ -485,7 +485,7 @@ export function Confirm({
   return (
     value && (
       <Sheet title={value.title} close={close} hideClose={value.hideClose}>
-        <Text style={s.text}>{value.message}</Text>
+        {!!value.message && <Text style={s.text}>{value.message}</Text>}
         {value.summary && <View style={{ gap: 5, padding: 15, borderRadius: 18, backgroundColor: "#e2f8f8", borderWidth: 1, borderColor: "#9fe1e4" }}>
           <Text style={{ color: "#087f91", fontSize: 10, fontWeight: "900", letterSpacing: 1 }}>{value.summary.eyebrow}</Text>
           <Text style={{ color: "#073b43", fontSize: 19, fontWeight: "900" }}>{value.summary.title}</Text>

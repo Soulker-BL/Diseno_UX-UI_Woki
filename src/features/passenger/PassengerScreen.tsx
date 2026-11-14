@@ -359,28 +359,18 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
       destinationTitle={screen === "home"}
       softTitle={mapBackground}
       actionsBesideTitle={screen === "payment" || screen === "review"}
-      back={screen === "home" || p.phase ? undefined : back}
+      back={screen === "home" || p.phase || screen === "offers" ? undefined : back}
       mapBackground={mapBackground}
       mapOrigin={p.origin}
       mapDest={p.dest?.pos}
       onMapOriginChange={(origin) => patch({ origin })}
       left={screen === "home" && p.authenticated ? <DrawerTrigger onPress={() => setDrawerOpen(true)} /> : undefined}
-      stickyContent={screen === "offers" ? <>
-        <View style={passengerFlowStyles.offerHeading}><Text style={passengerFlowStyles.offerHeadingTitle}>Elige tu conductor</Text></View>
-        <View style={passengerFlowStyles.cancelSearchRow}><Pressable accessibilityRole="button" accessibilityLabel="Cancelar búsqueda" onPress={reset} style={({ pressed }) => [passengerFlowStyles.cancelSearchButton, pressed && { opacity: 0.7 }]}><Text style={passengerFlowStyles.cancelSearchText}>Cancelar búsqueda</Text></Pressable></View>
-        {p.dest && p.price > p.dest.price && <Notice>{`Tu oferta de ${soles(p.price)} está visible para los conductores.`}</Notice>}
-      </> : undefined}
-      stickyFooter={screen === "confirm" && p.dest && !p.dest.outOfZone ? (
-        <>
-          <View style={passengerFlowStyles.fixedActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel={"Forma de pago: " + p.pay} onPress={() => setPaymentOpen(true)} style={passengerFlowStyles.fixedAction}><Text style={passengerFlowStyles.fixedActionText}>{p.pay}  ⌄</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Editar detalles del viaje" onPress={() => setDetailsOpen(true)} style={passengerFlowStyles.fixedAction}><Text style={passengerFlowStyles.fixedActionText}>Detalles</Text></Pressable>
-          </View>
-          <View style={passengerFlowStyles.fixedSearchRow}>
-            <View style={passengerFlowStyles.fixedFare}><Text style={passengerFlowStyles.fixedFareLabel}>TU OFERTA</Text><Text style={passengerFlowStyles.fixedFareValue}>{soles(p.price)}</Text></View>
-            <Button compact disabled={!p.reference.trim() || !!p.debt} onPress={() => goPassenger("searching")}>Buscar</Button>
-          </View>
-        </>
+      stickyContent={screen === "offers" && p.dest && p.price > p.dest.price ? <Notice>{`Tu oferta de ${soles(p.price)} está visible para los conductores.`}</Notice> : undefined}
+      panelActions={screen === "offers" ? (
+        <View style={passengerFlowStyles.offersPanelActions}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={back} style={passengerFlowStyles.offersBackButton}><Text style={passengerFlowStyles.offersBackGlyph}>‹</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Cancelar búsqueda" onPress={reset} style={({ pressed }) => [passengerFlowStyles.cancelSearchButton, pressed && { opacity: 0.75 }]}><Text style={passengerFlowStyles.cancelSearchText}>Cancelar búsqueda</Text></Pressable>
+        </View>
       ) : undefined}
       right={
         <View style={headerOptionStyles.group}>
@@ -653,7 +643,17 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
                 value={p.reference}
                 onChangeText={(reference) => patch({ reference })}
               />
-
+              <View style={passengerFlowStyles.confirmActions}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Forma de pago: ${p.pay}`} onPress={() => setPaymentOpen(true)} style={({ pressed }) => [passengerFlowStyles.confirmAction, pressed && { opacity: 0.72 }]}>
+                  <Svg width={20} height={20} viewBox="0 0 24 24"><Rect x="3" y="5" width="18" height="14" rx="2.5" fill="none" stroke="#087f91" strokeWidth="1.8" /><Circle cx="12" cy="12" r="2.7" fill="none" stroke="#087f91" strokeWidth="1.7" /><Path d="M6.5 9h1m9 6h1" stroke="#087f91" strokeWidth="1.7" strokeLinecap="round" /></Svg>
+                  <Text numberOfLines={1} style={passengerFlowStyles.confirmActionText}>{p.pay}</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel="Editar detalles del viaje" onPress={() => setDetailsOpen(true)} style={({ pressed }) => [passengerFlowStyles.confirmAction, pressed && { opacity: 0.72 }]}>
+                  <Svg width={20} height={20} viewBox="0 0 24 24"><Rect x="5" y="3" width="14" height="18" rx="2" fill="none" stroke="#087f91" strokeWidth="1.8" /><Path d="M8.5 8h7m-7 4h7m-7 4h4" stroke="#087f91" strokeWidth="1.7" strokeLinecap="round" /></Svg>
+                  <Text style={passengerFlowStyles.confirmActionText}>Detalles</Text>
+                </Pressable>
+              </View>
+              <Button disabled={!p.reference.trim() || !!p.debt} onPress={() => goPassenger("searching")}>Buscar</Button>
             </>
           )}
           {p.debt && (
@@ -691,8 +691,9 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
                     onPress={() =>
                   setConfirmation({
                     title: "¿Elegir este conductor?",
-                    message: `${offer.name} · ${soles(offer.price)}`,
+                    message: "",
                     summary: { eyebrow: "RESUMEN DE VIAJE", title: offer.name, detail: `${offer.car} · ${offer.plate} · llega en ${offer.eta} min`, price: soles(offer.price) },
+                    hideClose: true,
                     action: () => {
                       patch({ driver: offer, phase: "enroute" });
                       goPassenger("enroute", true);
@@ -1035,7 +1036,8 @@ const passengerFlowStyles = StyleSheet.create({
   compactPrice: { alignItems: "flex-end", gap: 2, paddingLeft: 7 }, compactPriceLabel: { color: "#3a858b", fontSize: 8, fontWeight: "900", letterSpacing: 0.5 }, compactPriceValue: { color: "#005b66", fontSize: 17, fontWeight: "900" }, compactVehicle: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12, backgroundColor: "#eff9fa" }, compactCar: { flex: 1, color: "#005b66", fontSize: 12, fontWeight: "900" }, compactVehicleMeta: { color: "#477a80", fontSize: 10, fontWeight: "700" }, compactOfferBottom: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 5 }, compactEta: { flexShrink: 1, color: "#36777d", fontSize: 10, fontWeight: "700" }, compactOfferActions: { flexDirection: "row", alignItems: "center", gap: 4 },
   rating: { paddingHorizontal: 9, paddingVertical: 7, borderRadius: 12, backgroundColor: "#ffd34e", borderWidth: 1, borderColor: "#ffad16" }, ratingText: { color: "#764500", fontSize: 12, fontWeight: "900" }, etaRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12, backgroundColor: "#d9f7f8" }, etaText: { color: "#005b66", fontSize: 11, fontWeight: "800" }, offerPrice: { color: "#005b66", fontSize: 23, fontWeight: "900" },
   offerHeading: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingHorizontal: 2 }, offerHeadingTitle: { color: "#0d2f34", fontSize: 18, fontWeight: "900" }, offerHeadingMeta: { color: "#087f91", fontSize: 11, fontWeight: "800" },
-  cancelSearchRow: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "flex-start" }, cancelSearchHint: { flex: 1, color: "#68878b", fontSize: 10, fontWeight: "600" }, cancelSearchButton: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 16, paddingVertical: 7, borderRadius: 12, borderWidth: 1.5, borderColor: "#d92d3c", backgroundColor: "#fff0f1" }, cancelSearchGlyph: { color: "#bf2934", fontSize: 17, lineHeight: 18, fontWeight: "800" }, cancelSearchText: { color: "#a9202c", fontSize: 12, fontWeight: "900" },
+  offersPanelActions: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 }, offersBackButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 15, borderWidth: 1, borderColor: "#bfe5e9", backgroundColor: "#fff", shadowColor: "#005b66", shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3 }, offersBackGlyph: { color: "#005b66", fontSize: 32, lineHeight: 36, marginTop: -3 }, cancelSearchButton: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 16, paddingVertical: 7, borderRadius: 12, borderWidth: 1.5, borderColor: "#d92d3c", backgroundColor: "#fff0f1" }, cancelSearchGlyph: { color: "#bf2934", fontSize: 17, lineHeight: 18, fontWeight: "800" }, cancelSearchText: { color: "#a9202c", fontSize: 12, fontWeight: "900" },
+  confirmActions: { flexDirection: "row", gap: 10 }, confirmAction: { flex: 1, minWidth: 0, minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 11, borderRadius: 15, borderWidth: 1, borderColor: "#bfe5e9", backgroundColor: "#f7fcfc" }, confirmActionText: { flexShrink: 1, color: "#111", fontSize: 13, fontWeight: "800" },
   driverProfileHero: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 18, backgroundColor: "#e9f8f8", borderWidth: 1, borderColor: "#c7ebed" }, driverProfileAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#078d9a", alignItems: "center", justifyContent: "center" }, driverProfileInitial: { color: "#fff", fontSize: 23, fontWeight: "900" }, driverProfileName: { color: "#123c42", fontSize: 16, fontWeight: "900" }, driverProfileRating: { color: "#ee9e00", fontSize: 14, fontWeight: "900" }, driverProfileRatingMeta: { color: "#64868a", fontSize: 11, fontWeight: "700" }, verifiedPill: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20, backgroundColor: "#d7f3e6" }, verifiedText: { color: "#198254", fontSize: 9, fontWeight: "900" }, driverProfileVehicle: { marginTop: 12, padding: 13, borderRadius: 16, borderWidth: 1, borderColor: "#dcebed", backgroundColor: "#fff" }, driverProfileVehicleLabel: { color: "#61868a", fontSize: 9, fontWeight: "900", letterSpacing: 0.8 }, driverProfileVehicleName: { marginTop: 4, color: "#153f45", fontSize: 15, fontWeight: "900" }, driverProfileVehicleMeta: { marginTop: 3, color: "#638489", fontSize: 12, fontWeight: "700" }, reviewsHeading: { marginTop: 16, marginBottom: 8, color: "#143d43", fontSize: 14, fontWeight: "900" }, reviewCard: { marginBottom: 8, padding: 12, borderRadius: 15, backgroundColor: "#f7fbfb", borderWidth: 1, borderColor: "#e1eff0", gap: 6 }, reviewHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, reviewName: { color: "#1a4146", fontSize: 12, fontWeight: "900" }, reviewStars: { color: "#f3a900", fontSize: 12, fontWeight: "900" }, reviewText: { color: "#527277", fontSize: 12, lineHeight: 17 },
   vehicleGrid: { flexDirection: "row", gap: 9 }, vehicleInfo: { flex: 1, minWidth: 0, justifyContent: "center", gap: 3, padding: 12, borderRadius: 14, backgroundColor: "#def5f7" }, vehicleName: { color: "#005b66", fontSize: 16, fontWeight: "900" }, vehicleColor: { color: "#526e73", fontSize: 11, fontWeight: "600" }, plateBox: { minWidth: 112, alignItems: "center", justifyContent: "center", gap: 4, padding: 10, borderRadius: 14, borderWidth: 1.5, borderColor: "#bfe5e9", backgroundColor: "#fff" },
   offerFare: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 13, paddingVertical: 9, borderRadius: 14, backgroundColor: "#e9f9fa" }, fareArrow: { color: "#218e97", fontSize: 28, fontWeight: "700" },

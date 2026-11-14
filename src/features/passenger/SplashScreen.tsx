@@ -69,7 +69,7 @@ export default function SplashScreen() {
       </Svg>
 
       <View style={styles.brandBlock}>
-        <BrandLogo size={68} pinColor="#f5a524" />
+        <BrandLogo color="#fff" size={68} />
         <Text style={styles.tagline}>
           Tu taxi urbano, <Text style={styles.taglineAccent}>más cerca</Text>
         </Text>

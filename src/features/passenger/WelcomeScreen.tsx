@@ -30,7 +30,7 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.hero}>
-          <View style={styles.logoPlate}><BrandLogo color="#005b66" pinColor="#f5a524" size={48} /></View>
+          <View style={styles.logoPlate}><BrandLogo color="#005b66" size={48} /></View>
           <Text accessibilityRole="header" style={styles.title}>Muévete fácil.</Text>
           <Text accessibilityRole="header" style={styles.title}>Llega con Woki.</Text>
           <Text style={styles.subtitle}>Tu taxi urbano, más cerca.</Text>
