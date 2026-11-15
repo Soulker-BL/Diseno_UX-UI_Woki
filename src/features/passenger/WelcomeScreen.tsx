@@ -11,10 +11,6 @@ export default function WelcomeScreen() {
   const { passenger, setPassenger } = useApp();
   const [showTerms, setShowTerms] = useState(false);
 
-  function continueWithPhone() {
-    router.push(passenger.authenticated ? "/pasajero/home" : "/pasajero/phone");
-  }
-
   function demoNext() {
     setPassenger((current) => ({ ...current, user: { ...current.user, phone: "987654321" } }));
     router.push("/pasajero/phone");
@@ -26,7 +22,6 @@ export default function WelcomeScreen() {
         <View style={styles.topLine}>
           <View style={styles.pin}><Text style={styles.pinText}>⌖</Text></View>
           <Text style={styles.city}>CERRO DE PASCO</Text>
-          <PassengerDemoButton onPress={demoNext} />
         </View>
 
         <View style={styles.hero}>
@@ -38,7 +33,8 @@ export default function WelcomeScreen() {
         </View>
 
         <View style={styles.actions}>
-          <Button onPress={continueWithPhone}>Continuar con el teléfono</Button>
+          <Button onPress={() => router.push(passenger.authenticated ? "/pasajero/home" : "/pasajero/login")}>Iniciar sesión</Button>
+          <Pressable accessibilityRole="button" onPress={() => router.push("/pasajero/phone")} style={styles.loginLink}><Text style={styles.loginLinkText}>¿No tienes una cuenta? Regístrate aquí</Text></Pressable>
           <Text style={styles.security}>Tu número se usa para verificar tu cuenta y ayudarte a recuperar el acceso.</Text>
         </View>
 
@@ -47,6 +43,7 @@ export default function WelcomeScreen() {
           <Pressable accessibilityRole="button" onPress={() => setShowTerms(true)}><Text style={styles.legalLink}>términos y condiciones</Text></Pressable>
           <Text style={styles.legalCopy}> y la política de privacidad.</Text>
         </View>
+        <View style={styles.footer}><PassengerDemoButton onPress={demoNext} /></View>
       </ScrollView>
       <LegalTermsSheet visible={showTerms} close={() => setShowTerms(false)} />
     </PassengerTheme>
@@ -68,6 +65,9 @@ const styles = StyleSheet.create({
   routeDash: { flex: 1, height: 3, marginHorizontal: 6, borderRadius: 3, backgroundColor: "#65d9dd" },
   routeEnd: { width: 15, height: 15, borderRadius: 8, backgroundColor: "#f5a524", borderWidth: 3, borderColor: "#fff" },
   actions: { gap: 12 },
+  loginLink: { minHeight: 44, alignItems: "center", justifyContent: "center" },
+  loginLinkText: { color: "#005b66", fontSize: 13, fontWeight: "800", textDecorationLine: "underline" },
+  footer: { position: "absolute", bottom: 8, right: 14 },
   security: { color: "#111111", fontSize: 12, lineHeight: 18, textAlign: "center" },
   legal: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "center", marginTop: 22, paddingHorizontal: 6 },
   legalCopy: { color: "#111111", fontSize: 10, lineHeight: 16 },

@@ -15,7 +15,7 @@ export function PassengerDemoButton({ onPress, label = "Demo" }: { onPress: () =
 }
 
 const styles = StyleSheet.create({
-  button: { minHeight: 44, justifyContent: "center", alignItems: "center", paddingHorizontal: 15, borderRadius: 16, borderWidth: 1, borderColor: "#f5a524", backgroundColor: "#ffd26f" },
-  label: { color: "#111111", fontSize: 12, fontWeight: "900" },
+  button: { minHeight: 44, justifyContent: "center", alignItems: "center", paddingHorizontal: 8 },
+  label: { color: "#005b66", fontSize: 12, fontWeight: "800", textDecorationLine: "underline" },
   pressed: { opacity: 0.75, transform: [{ scale: 0.98 }] },
 });

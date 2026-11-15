@@ -2,6 +2,7 @@ import { router } from "expo-router";
 
 export type PassengerScreenName =
   | "welcome"
+  | "login"
   | "phone"
   | "otp"
   | "role"
@@ -33,6 +34,7 @@ export type PassengerScreenName =
 
 export const PASSENGER_SCREEN_TITLES: Partial<Record<PassengerScreenName, string>> = {
   welcome: "WOKI",
+  login: "Iniciar sesión",
   phone: "Introduce tu número de teléfono",
   otp: "Verifica tu número",
   role: "¿Cómo quieres continuar?",
@@ -64,7 +66,7 @@ export const PASSENGER_SCREEN_TITLES: Partial<Record<PassengerScreenName, string
 };
 
 export const PASSENGER_PUBLIC_SCREENS: ReadonlySet<PassengerScreenName> = new Set([
-  "welcome", "phone", "otp", "role", "register", "terms", "emergency",
+  "welcome", "login", "phone", "otp", "role", "register", "terms", "emergency",
 ]);
 
 export const PASSENGER_ACCOUNT_SCREENS: ReadonlySet<PassengerScreenName> = new Set([

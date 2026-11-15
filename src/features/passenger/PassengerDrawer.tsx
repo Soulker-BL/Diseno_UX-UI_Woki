@@ -31,12 +31,12 @@ export function PassengerDrawer({ close, onNavigate, name, phone, photo, activeS
       <View style={styles.overlay}>
         <Pressable accessibilityRole="button" accessibilityLabel="Cerrar menú" onPress={close} style={styles.scrim} />
         <View style={styles.panel}>
-          <View style={[styles.topLine, styles.topLineEnd]}><Pressable accessibilityRole="button" accessibilityLabel="Cerrar menú" onPress={close} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable></View>
           <View style={styles.identity}>
             <View style={styles.avatar}>
               {photo ? <Image accessibilityLabel="Tu foto de perfil" source={{ uri: photo }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{(name || "P").slice(0, 1).toUpperCase()}</Text>}
             </View>
-            <View style={{ flex: 1, gap: 3 }}><Text style={styles.eyebrow}>TU CUENTA WOKI</Text><Text numberOfLines={1} style={styles.name}>{name || "Pasajero Woki"}</Text><Text style={styles.phone}>+51 {phone}</Text></View>
+            <View style={{ flex: 1, gap: 3 }}><Text numberOfLines={1} style={styles.name}>{name || "Pasajero Woki"}</Text><Text style={styles.phone}>+51 {phone}</Text></View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Cerrar menú" onPress={close} style={styles.close}><Svg width={16} height={16} viewBox="0 0 16 16"><Path d="m4 4 8 8m0-8-8 8" stroke="#005b66" strokeWidth={1.8} strokeLinecap="round" /></Svg></Pressable>
           </View>
           <ScrollView style={styles.navScroll} contentContainerStyle={styles.navContent} showsVerticalScrollIndicator={false}>
             <Text style={styles.sectionLabel}>CUENTA</Text>
@@ -96,16 +96,15 @@ const styles = StyleSheet.create({
   trigger: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center", gap: 4, borderWidth: 1, borderColor: "#bfe5e9", backgroundColor: "#fff" },
   hamburgerLine: { width: 18, height: 2, borderRadius: 2, backgroundColor: "#005b66" },
   overlay: { flex: 1, flexDirection: "row", backgroundColor: "#0d2f3488" }, scrim: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
-  panel: { width: "86%", maxWidth: 360, height: "100%", backgroundColor: "#f3fbfc", paddingHorizontal: 18, paddingTop: 24, paddingBottom: 18, borderRightWidth: 1, borderRightColor: "#d6eef0" },
-  topLine: { height: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, topLineEnd: { justifyContent: "flex-end" }, brand: { color: "#005b66", fontSize: 17, fontWeight: "900", letterSpacing: 1.5 },
-  close: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#def5f7" }, closeText: { color: "#005b66", fontSize: 25, lineHeight: 27 },
-  identity: { minHeight: 64, marginTop: 16, marginBottom: 17, flexDirection: "row", alignItems: "center", gap: 13, paddingHorizontal: 2 },
+  panel: { width: "76%", maxWidth: 320, height: "100%", backgroundColor: "#f3fbfc", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 14, borderRightWidth: 1, borderRightColor: "#d6eef0" },
+  close: { width: 44, height: 44, flexShrink: 0, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#def5f7" },
+  identity: { minHeight: 58, marginTop: 12, marginBottom: 12, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 2, backgroundColor: "transparent", borderWidth: 0, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   avatar: { width: 50, height: 50, overflow: "hidden", borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderWidth: 2, borderColor: "#8cdee3" }, avatarImage: { width: 50, height: 50 }, avatarText: { color: "#087f91", fontSize: 20, fontWeight: "800" },
   eyebrow: { color: "#218e97", fontSize: 9, fontWeight: "900", letterSpacing: 1 }, name: { color: "#0d2f34", fontSize: 15, fontWeight: "800" }, phone: { color: "#526e73", fontSize: 12 },
-  navScroll: { flex: 1 }, navContent: { paddingTop: 1, paddingBottom: 14, gap: 11 }, sectionLabel: { marginTop: 4, color: "#65868b", fontSize: 9, fontWeight: "900", letterSpacing: 1.15 },
-  linkGroup: { padding: 5, borderRadius: 18, backgroundColor: "#fff", borderWidth: 1, borderColor: "#d9edef" }, link: { minHeight: 49, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 8, borderRadius: 13 }, linkActive: { backgroundColor: "#e7f8f9" }, rowPressed: { opacity: 0.75 },
+  navScroll: { flex: 1 }, navContent: { paddingTop: 1, paddingBottom: 10, gap: 7 }, sectionLabel: { marginTop: 2, color: "#65868b", fontSize: 9, fontWeight: "900", letterSpacing: 1.15 },
+  linkGroup: { padding: 3, borderRadius: 16, backgroundColor: "#fff", borderWidth: 1, borderColor: "#d9edef" }, link: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 6, borderRadius: 12 }, linkActive: { backgroundColor: "#e7f8f9" }, rowPressed: { opacity: 0.75 },
   iconTile: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: "#e1f5f6" }, iconTileActive: { backgroundColor: "#087f91" },
-  itemDivider: { height: 1, marginLeft: 48, marginRight: 9, backgroundColor: "#edf4f5" }, linkLabel: { flex: 1, color: "#0d2f34", fontSize: 13, fontWeight: "600" }, linkLabelActive: { color: "#005b66", fontWeight: "800" }, chevron: { color: "#53bdc7", fontSize: 21 }, chevronActive: { color: "#087f91" },
-  footer: { paddingTop: 11, borderTopWidth: 1, borderTopColor: "#cbe9ec", gap: 3 }, footerAction: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 5, borderRadius: 13 }, logoutTile: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: "#fff0f0" }, logoutText: { flex: 1, color: "#b54141", fontSize: 13, fontWeight: "700" },
+  itemDivider: { height: 1, marginLeft: 44, marginRight: 7, backgroundColor: "#edf4f5" }, linkLabel: { flex: 1, color: "#0d2f34", fontSize: 13, fontWeight: "600" }, linkLabelActive: { color: "#005b66", fontWeight: "800" }, chevron: { color: "#53bdc7", fontSize: 21 }, chevronActive: { color: "#087f91" },
+  footer: { paddingTop: 8, borderTopWidth: 1, borderTopColor: "#cbe9ec", gap: 2 }, footerAction: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 4, borderRadius: 12 }, logoutTile: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: "#fff0f0" }, logoutText: { flex: 1, color: "#b54141", fontSize: 13, fontWeight: "700" },
 
 });

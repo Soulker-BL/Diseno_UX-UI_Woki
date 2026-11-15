@@ -26,6 +26,8 @@ export type User = {
   last: string;
   lastMaterno: string;
   dni: string;
+  birthDate: string;
+  dniIssueDate: string;
   phone: string;
   email: string;
   photo: string | null;
@@ -51,7 +53,7 @@ export type Passenger = {
   dest: Place | null;
   price: number;
   pax: number;
-  pay: "Efectivo" | "Yape" | "Plin";
+  pay: "Efectivo" | "Yape" | "Plin" | null;
   reference: string;
   notes: string;
   driver: Offer | null;
@@ -65,12 +67,12 @@ export type Passenger = {
 };
 export const newPassenger = (): Passenger => ({
   authenticated: false,
-  user: { first: "", last: "", lastMaterno: "", dni: "", phone: "", email: "", photo: null, travelPreference: "Me adapto" },
+  user: { first: "", last: "", lastMaterno: "", dni: "", birthDate: "", dniIssueDate: "", phone: "", email: "", photo: null, travelPreference: "Me adapto" },
   origin: START,
   dest: null,
   price: 0,
   pax: 1,
-  pay: "Efectivo",
+  pay: null,
   reference: "",
   notes: "",
   driver: null,

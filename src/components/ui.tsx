@@ -1,6 +1,7 @@
-import { createContext, type ReactNode, useContext, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import {
   Image,
+  Animated,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -151,69 +152,84 @@ export function Screen({
   right,
   left,
   panelActions,
+  bottomActions,
   children,
   mapBackground = false,
   stickyContent,
   destinationTitle = false,
   softTitle = false,
   actionsBesideTitle = false,
+  squareHeader = false,
+  contentMaxHeight,
   mapOrigin,
   mapDest,
   onMapOriginChange,
+  showNearbyDrivers = false,
 }: {
   title: string;
   back?: () => void;
   right?: ReactNode;
   left?: ReactNode;
   panelActions?: ReactNode;
+  bottomActions?: ReactNode;
   children: ReactNode;
   mapBackground?: boolean;
   stickyContent?: ReactNode;
   destinationTitle?: boolean;
   softTitle?: boolean;
   actionsBesideTitle?: boolean;
+  squareHeader?: boolean;
+  contentMaxHeight?: number;
   mapOrigin?: [number, number];
   mapDest?: [number, number];
   onMapOriginChange?: (p: [number, number]) => void;
+  showNearbyDrivers?: boolean;
 }) {
   const palette = usePalette();
   const passenger = useContext(UiThemeContext) === "passenger";
   const [mapPanelCollapsed, setMapPanelCollapsed] = useState(false);
-  const [panelHeight, setPanelHeight] = useState(0);
+  const [panelMotion] = useState(() => new Animated.Value(0));
+  const hideMapPanel = () => Animated.timing(panelMotion, { toValue: 1, duration: 230, useNativeDriver: true }).start(({ finished }) => {
+    if (finished) setMapPanelCollapsed(true);
+  });
+  const revealMapPanel = () => {
+    panelMotion.setValue(1);
+    setMapPanelCollapsed(false);
+    requestAnimationFrame(() => Animated.timing(panelMotion, { toValue: 0, duration: 260, useNativeDriver: true }).start());
+  };
   if (mapBackground && passenger) {
     return (
       <KeyboardAvoidingView style={[s.screen, { backgroundColor: palette.map }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <MapPreview origin={mapOrigin} dest={mapDest} onMove={onMapOriginChange} fullScreen />
+        <MapPreview origin={mapOrigin} dest={mapDest} onMove={onMapOriginChange} fullScreen showNearbyDrivers={showNearbyDrivers} />
         <View style={mapScreenStyles.topBar}>
           <View style={mapScreenStyles.leftActions}>{left}{back && <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={back} style={mapScreenStyles.backButton}><Text style={mapScreenStyles.backGlyph}>‹</Text></Pressable>}</View>
           {!actionsBesideTitle && right}
         </View>
         {!mapPanelCollapsed ? (
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={mapScreenStyles.scroll} contentContainerStyle={mapScreenStyles.mapContent}>
-              <View onLayout={({ nativeEvent }) => setPanelHeight(nativeEvent.layout.height)} style={[mapScreenStyles.panel, !!stickyContent && mapScreenStyles.panelScrollable]}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Ocultar panel para ver el mapa completo" onPress={() => setMapPanelCollapsed(true)} style={mapScreenStyles.handleTouch}><View style={mapScreenStyles.handle} /></Pressable>
+          <Animated.ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={[mapScreenStyles.scroll, { opacity: panelMotion.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateY: panelMotion.interpolate({ inputRange: [0, 1], outputRange: [0, 68] }) }] }]} contentContainerStyle={mapScreenStyles.mapContent}>
+              <View style={[mapScreenStyles.panel, !!stickyContent && mapScreenStyles.panelScrollable]}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Ocultar panel para ver el mapa completo" onPress={hideMapPanel} style={mapScreenStyles.handleTouch}><View style={mapScreenStyles.handle} /></Pressable>
               {destinationTitle || softTitle ? <View style={mapScreenStyles.destinationHeader}>
                 <View style={mapScreenStyles.destinationTitleGroup}>
-                  <View style={mapScreenStyles.destinationIcon}><Svg width={20} height={20} viewBox="0 0 24 24">{destinationTitle ? <><Circle cx="10.8" cy="10.8" r="6.6" fill="none" stroke="#087f91" strokeWidth="2" /><Path d="m16 16 4.3 4.3" fill="none" stroke="#087f91" strokeWidth="2" strokeLinecap="round" /></> : <><Circle cx="12" cy="12" r="6.5" fill="none" stroke="#087f91" strokeWidth="1.8" /><Circle cx="12" cy="12" r="2" fill="none" stroke="#087f91" strokeWidth="1.7" /><Path d="M12 2.5v2.8m0 13.4v2.8m9.5-9.5h-2.8M5.3 12H2.5" fill="none" stroke="#087f91" strokeWidth="1.7" strokeLinecap="round" /></>}</Svg></View>
                   <Text accessibilityRole="header" numberOfLines={2} adjustsFontSizeToFit style={mapScreenStyles.destinationTitle}>{title}</Text>
                 </View>
                 {actionsBesideTitle && right}
-                {destinationTitle && <Pressable accessibilityRole="button" accessibilityLabel="Cerrar selección de destino" onPress={() => setMapPanelCollapsed(true)} style={({ pressed }) => [mapScreenStyles.destinationClose, pressed && { opacity: 0.55 }]}><Text style={mapScreenStyles.destinationCloseGlyph}>×</Text></Pressable>}
+                {destinationTitle && <Pressable accessibilityRole="button" accessibilityLabel="Cerrar selección de destino" onPress={hideMapPanel} style={({ pressed }) => [mapScreenStyles.destinationClose, pressed && { opacity: 0.55 }]}><Text style={mapScreenStyles.destinationCloseGlyph}>×</Text></Pressable>}
               </View> : <View style={mapScreenStyles.titleBand}>
                 <Text accessibilityRole="header" numberOfLines={2} adjustsFontSizeToFit style={mapScreenStyles.title}>{title}</Text>
               </View>}
               {stickyContent ? <>
                 <View style={{ gap: 10 }}>{stickyContent}</View>
-                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={mapScreenStyles.innerScroll} contentContainerStyle={mapScreenStyles.innerContent}>{children}</ScrollView>
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={[mapScreenStyles.innerScroll, contentMaxHeight ? { maxHeight: contentMaxHeight } : undefined]} contentContainerStyle={[mapScreenStyles.innerContent, !!panelActions && mapScreenStyles.innerContentWithActions]}>{children}</ScrollView>
               </> : <View style={{ gap: 13 }}>{children}</View>}
             </View>
-          </ScrollView>
+          </Animated.ScrollView>
         ) : (
-          <Pressable accessibilityRole="button" accessibilityLabel="Mostrar detalles del viaje" onPress={() => setMapPanelCollapsed(false)} style={mapScreenStyles.expandPanel}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Mostrar detalles del viaje" onPress={revealMapPanel} style={mapScreenStyles.expandPanel}>
             <View style={mapScreenStyles.handle} /><Text style={mapScreenStyles.expandLabel}>Mostrar {title.toLowerCase()}</Text>
           </Pressable>
         )}
-        {!mapPanelCollapsed && panelActions && <View style={[mapScreenStyles.panelActions, { bottom: panelHeight + 20 }]}>{panelActions}</View>}
+        {!mapPanelCollapsed && panelActions && <View style={mapScreenStyles.panelActions}>{panelActions}</View>}
       </KeyboardAvoidingView>
     );
   }
@@ -222,15 +238,19 @@ export function Screen({
       style={[s.screen, passenger && { backgroundColor: palette.bg }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={passenger ? screenStyles.passengerHeader : screenStyles.defaultHeader}>
+      <View style={[passenger ? screenStyles.passengerHeader : screenStyles.defaultHeader, passenger && squareHeader && screenStyles.squarePassengerHeader]}>
         {actionsBesideTitle ? (
           <View style={screenStyles.titleActionRow}>
+            {left}
             <Text accessibilityRole="header" numberOfLines={2} adjustsFontSizeToFit style={[s.title, passenger && screenStyles.passengerTitle, screenStyles.inlineTitle]}>{title}</Text>
             {right}
           </View>
         ) : <>
           <View style={[s.row, { justifyContent: "space-between" }]}>
-            {back && (passenger ? <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={back} style={screenStyles.backButton}><Text style={screenStyles.backText}>‹  Volver</Text></Pressable> : <Button tone="plain" onPress={back}>← Volver</Button>)}
+            <View style={screenStyles.leftActions}>
+              {left}
+              {back && (passenger ? <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={back} style={screenStyles.backButton}><Text style={screenStyles.backText}>‹  Volver</Text></Pressable> : <Button tone="plain" onPress={back}>← Volver</Button>)}
+            </View>
             {right}
           </View>
           <Text accessibilityRole="header" numberOfLines={2} adjustsFontSizeToFit style={[s.title, passenger && screenStyles.passengerTitle]}>{title}</Text>
@@ -245,16 +265,20 @@ export function Screen({
       >
         {children}
       </ScrollView>
+      {bottomActions && <View style={screenStyles.bottomActions}>{bottomActions}</View>}
     </KeyboardAvoidingView>
   );
 }
 
 const screenStyles = StyleSheet.create({
   defaultHeader: { paddingHorizontal: 18, paddingVertical: 14, backgroundColor: "#fff", borderBottomWidth: 1, borderColor: colors.border, gap: 10 },
-  passengerHeader: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 22, gap: 12, backgroundColor: "#087e89", borderBottomLeftRadius: 25, borderBottomRightRadius: 25, overflow: "hidden" },
+  passengerHeader: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 20, gap: 12, backgroundColor: "#087e89", borderBottomLeftRadius: 19, borderBottomRightRadius: 19, overflow: "hidden" },
+  squarePassengerHeader: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
   passengerTitle: { color: "#fff", fontSize: 25, lineHeight: 31, letterSpacing: -0.5, fontWeight: "900", flexShrink: 1 },
   titleActionRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  leftActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   inlineTitle: { flex: 1, minWidth: 0 },
+  bottomActions: { minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingBottom: 8, backgroundColor: "#f5fbfc" },
   backButton: { minHeight: 40, justifyContent: "center", paddingHorizontal: 12, borderRadius: 14, backgroundColor: "#ffffff26", borderWidth: 1, borderColor: "#ffffff3d" },
   backText: { color: "#fff", fontSize: 14, fontWeight: "800" },
 });
@@ -262,13 +286,13 @@ const screenStyles = StyleSheet.create({
 const mapScreenStyles = StyleSheet.create({
   topBar: { position: "absolute", zIndex: 3, top: 12, left: 16, right: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   leftActions: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
-  panelActions: { position: "absolute", zIndex: 5, left: 16, right: 16, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  panelActions: { position: "absolute", zIndex: 10, left: 16, right: 16, bottom: 14, minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center" },
   backButton: { width: 44, height: 44, borderRadius: 16, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#d9e7e0", backgroundColor: "#ffffffed", shadowColor: "#123b37", shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   backGlyph: { color: "#005b66", fontSize: 33, lineHeight: 36, marginTop: -4 },
   scroll: { flex: 1 },
-  mapContent: { flexGrow: 1, justifyContent: "flex-end", paddingTop: 70, paddingHorizontal: 12, paddingBottom: 12 },
-  panel: { maxHeight: "88%", paddingHorizontal: 19, paddingTop: 9, paddingBottom: 20, borderRadius: 28, borderWidth: 1, borderColor: "#ffffff", backgroundColor: "rgba(255,255,255,0.96)", shadowColor: "#0d2f34", shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: -5 }, elevation: 8 },
-  panelScrollable: { flex: 1, minHeight: 0 }, innerScroll: { flex: 1, minHeight: 0 }, innerContent: { gap: 9, paddingBottom: 3 },
+  mapContent: { flexGrow: 1, justifyContent: "flex-end", paddingTop: 70, paddingHorizontal: 8, paddingBottom: 0 },
+  panel: { maxHeight: "92%", paddingHorizontal: 16, paddingTop: 7, paddingBottom: 14, borderTopLeftRadius: 21, borderTopRightRadius: 21, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, borderWidth: 1, borderColor: "#ffffff", backgroundColor: "rgba(255,255,255,0.97)", shadowColor: "#0d2f34", shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: -5 }, elevation: 8 },
+  panelScrollable: { flexGrow: 0, flexShrink: 1, minHeight: 0 }, innerScroll: { flexGrow: 0, flexShrink: 1, minHeight: 0 }, innerContent: { gap: 9, paddingBottom: 3 }, innerContentWithActions: { paddingBottom: 76 },
   handleTouch: { alignSelf: "center", width: 72, height: 44, alignItems: "center", justifyContent: "center", marginBottom: 0 },
   handle: { alignSelf: "center", width: 38, height: 4, borderRadius: 4, backgroundColor: "#a9dce1" },
   expandPanel: { position: "absolute", left: 14, right: 14, bottom: 14, minHeight: 68, alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 20, borderWidth: 1, borderColor: "#005b66", backgroundColor: "#005b66", shadowColor: "#0d2f34", shadowOpacity: 0.15, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
@@ -276,8 +300,7 @@ const mapScreenStyles = StyleSheet.create({
   titleBand: { marginHorizontal: -19, marginBottom: 13, minHeight: 58, justifyContent: "center", paddingHorizontal: 19, paddingVertical: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, backgroundColor: "#007985" },
   title: { color: "#fff", fontSize: 21, lineHeight: 26, fontWeight: "900", letterSpacing: -0.4, flexShrink: 1 },
   destinationHeader: { minHeight: 54, marginBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  destinationTitleGroup: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
-  destinationIcon: { width: 38, height: 38, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#e1f8f9" },
+  destinationTitleGroup: { flex: 1, flexDirection: "row", alignItems: "center" },
   destinationTitle: { flex: 1, color: "#006b77", fontSize: 24, lineHeight: 29, fontWeight: "900", letterSpacing: -0.55 },
   destinationClose: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#eff8f9" },
   destinationCloseGlyph: { color: "#4a7a80", fontSize: 24, lineHeight: 26, fontWeight: "500", marginTop: -1 },
@@ -292,7 +315,7 @@ export function Card({ children, compact = false }: { children: ReactNode; compa
         passenger && {
           padding: compact ? 11 : 16,
           backgroundColor: palette.card,
-          borderRadius: 17,
+          borderRadius: 15,
           borderWidth: 1,
           borderColor: compact ? "#b7dfe3" : "#d6e9eb",
           ...(compact ? { shadowColor: "#164c53", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 } : {}),
@@ -332,7 +355,7 @@ export function Button({
         passenger && {
           alignSelf: centered ? "center" : compact ? "flex-start" : "stretch",
           minHeight: compact ? 44 : 54,
-          borderRadius: compact ? 13 : 16,
+          borderRadius: compact ? 11 : 13,
           paddingHorizontal: compact ? 12 : 18,
           backgroundColor: tone === "danger" ? palette.danger : tone === "primary" ? palette.primary : tone === "secondary" ? palette.soft : "transparent",
         },
@@ -383,7 +406,7 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
           s.input,
           passenger && {
             minHeight: 54,
-            borderRadius: 14,
+            borderRadius: 12,
             borderColor: palette.border,
             backgroundColor: palette.card,
           },
@@ -655,13 +678,25 @@ export function MapPreview({
   dest,
   onMove,
   fullScreen = false,
+  showNearbyDrivers = false,
 }: {
   origin?: [number, number];
   dest?: [number, number];
   onMove?: (p: [number, number]) => void;
   fullScreen?: boolean;
+  showNearbyDrivers?: boolean;
 }) {
   const [size, setSize] = useState({ width: 1, height: 1 });
+  const [radarProgress] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (!showNearbyDrivers) return;
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(radarProgress, { toValue: 1, duration: 1500, useNativeDriver: true }),
+      Animated.timing(radarProgress, { toValue: 0, duration: 0, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [radarProgress, showNearbyDrivers]);
   const palette = usePalette();
   const passenger = useContext(UiThemeContext) === 'passenger';
   const mapHeight = passenger ? (100 * size.height) / Math.max(size.width, 1) : 100;
@@ -725,8 +760,16 @@ export function MapPreview({
           {dest && <Path d={`M${markerOrigin[0]},${markerOrigin[1]} C${markerOrigin[0] + 13},${markerOrigin[1] - 12} ${markerDest![0] - 14},${markerDest![1] + 12} ${markerDest![0]},${markerDest![1]}`} fill="none" stroke={passenger ? palette.brand : colors.primary} strokeWidth="1.5" strokeDasharray="2.3 2.3" />}
           {passenger ? marker(markerOrigin[0], markerOrigin[1], palette.brand, 'origin') : <Circle cx={markerOrigin[0]} cy={markerOrigin[1]} r="3" fill={colors.deep} stroke="white" strokeWidth="1" />}
           {dest && markerDest && (passenger ? marker(markerDest[0], markerDest[1], palette.pin, 'destination') : <Circle cx={dest[0]} cy={dest[1]} r="3" fill={colors.accent} stroke="white" strokeWidth="1" />)}
+          {showNearbyDrivers && passenger && [[27, mapY(24)], [69, mapY(34)], [78, mapY(13)]].map(([x, y], index) => <G key={`nearby-${index}`}>
+            <Circle cx={x} cy={y} r="4.6" fill="#fff" stroke="#218e97" strokeWidth="1.2" />
+            <SvgText x={x - 1.7} y={y + 1.2} fontSize="3.4" fontWeight="bold" fill="#005b66">W</SvgText>
+          </G>)}
         </Svg>
       </Pressable>
+      {showNearbyDrivers && <Animated.View pointerEvents="none" style={[mapPreviewStyles.radarRing, {
+        left: "48%", top: "24%", opacity: radarProgress.interpolate({ inputRange: [0, 1], outputRange: [0.65, 0] }),
+        transform: [{ scale: radarProgress.interpolate({ inputRange: [0, 1], outputRange: [0.35, 2.6] }) }],
+      }]} />}
       {!fullScreen && <Text style={[s.muted, { marginTop: 6 }]}>{onMove ? "Mapa esquemático · Toca para ajustar el recojo" : "Vista esquemática del recorrido"}</Text>}
     </View>
   );
@@ -734,4 +777,5 @@ export function MapPreview({
 
 const mapPreviewStyles = StyleSheet.create({
   full: { ...StyleSheet.absoluteFill, overflow: 'hidden', backgroundColor: '#eaf2eb' },
+  radarRing: { position: "absolute", width: 96, height: 96, marginLeft: -48, marginTop: -48, borderRadius: 48, borderWidth: 2, borderColor: "#218e97", backgroundColor: "#65d9dd20" },
 });

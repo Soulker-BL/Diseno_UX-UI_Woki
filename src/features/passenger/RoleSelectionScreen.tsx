@@ -13,16 +13,19 @@ export function RoleSelectionScreen() {
   return (
     <PassengerTheme>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.screen}>
+        <View style={styles.brand}><BrandLogo color="#005b66" size={34} /></View>
         <View style={styles.hero}>
-          <View style={styles.brand}><BrandLogo color="#fff" size={36} /><PassengerDemoButton onPress={passengerRoute} /></View>
           <Text accessibilityRole="header" style={styles.title}>¿Cómo quieres continuar?</Text>
-          <Text style={styles.subtitle}>Elige cómo usar Woki. Puedes cambiar de modo más adelante.</Text>
+          <Text style={styles.subtitle}>Elige cómo usar Woki.</Text>
         </View>
         <View style={styles.options}>
           <RoleCard title="Pasajero" subtitle="Pide un viaje y llega a tu destino" icon="person" onPress={passengerRoute} />
           <RoleCard title="Conductor" subtitle="Recibe solicitudes y conduce con Woki" icon="car" onPress={() => router.push("/conductor")} />
         </View>
-        <Text style={styles.footer}>VIAJES CERCANOS · TRATO DE CONFIANZA</Text>
+        <View style={styles.bottomActions}>
+          <Pressable accessibilityRole="button" onPress={() => router.replace("/pasajero/otp")}><Text style={styles.backText}>‹  Volver</Text></Pressable>
+          <PassengerDemoButton onPress={passengerRoute} />
+        </View>
       </ScrollView>
     </PassengerTheme>
   );
@@ -44,11 +47,11 @@ function RoleCard({ title, subtitle, icon, onPress }: { title: string; subtitle:
 
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: "#f5fbfc" },
-  screen: { flexGrow: 1, padding: 22, paddingBottom: 30 },
-  hero: { gap: 14, padding: 21, borderRadius: 25, backgroundColor: "#005b66" },
-  brand: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  title: { color: "#fff", fontSize: 29, lineHeight: 34, fontWeight: "900" },
-  subtitle: { color: "#e1fbfc", fontSize: 14, lineHeight: 21 },
+  screen: { flexGrow: 1, padding: 22, paddingBottom: 18 },
+  brand: { minHeight: 58, flexDirection: "row", alignItems: "center", marginBottom: 25 },
+  hero: { gap: 10, paddingBottom: 5 },
+  title: { color: "#0d2f34", fontSize: 29, lineHeight: 34, fontWeight: "900" },
+  subtitle: { color: "#526e73", fontSize: 14, lineHeight: 21 },
   options: { gap: 13, marginTop: 24 },
   roleCard: { minHeight: 92, flexDirection: "row", alignItems: "center", gap: 13, paddingHorizontal: 15, paddingVertical: 14, borderRadius: 20, borderWidth: 1, borderColor: "#bfe5e9", backgroundColor: "#fff", elevation: 2 },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.82 },
@@ -57,5 +60,6 @@ const styles = StyleSheet.create({
   roleTitle: { color: "#111111", fontSize: 17, fontWeight: "900" },
   roleSubtitle: { color: "#111111", fontSize: 12, lineHeight: 17, fontWeight: "600" },
   arrow: { color: "#111111", fontSize: 27, lineHeight: 30 },
-  footer: { alignSelf: "center", marginTop: "auto", paddingTop: 25, color: "#111111", fontSize: 9, fontWeight: "800", letterSpacing: 1.1, textAlign: "center" },
+  bottomActions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 26 },
+  backText: { color: "#005b66", fontSize: 13, fontWeight: "800" },
 });

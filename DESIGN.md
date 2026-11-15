@@ -11,7 +11,6 @@ colors:
   map: "#eaf7f8"
   map-road: "#c8e9ed"
   ink: "#0d2f34"
-  pin: "#f5a524"
 typography:
   sans:
     fontFamily: "system-ui, sans-serif"
