@@ -23,7 +23,7 @@ export function RoleSelectionScreen() {
           <RoleCard title="Conductor" subtitle="Recibe solicitudes y conduce con Woki" icon="car" onPress={() => router.push("/conductor")} />
         </View>
         <View style={styles.bottomActions}>
-          <Pressable accessibilityRole="button" onPress={() => router.replace("/pasajero/otp")}><Text style={styles.backText}>‹  Volver</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.replace("/pasajero/password")}><Text style={styles.backText}>‹  Volver</Text></Pressable>
           <PassengerDemoButton onPress={passengerRoute} />
         </View>
       </ScrollView>

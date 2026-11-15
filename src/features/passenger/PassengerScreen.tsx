@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import {
   Button,
@@ -82,12 +82,14 @@ function PlaceRow({
   trailing,
   label,
   onPress,
+  accentColor,
 }: {
   title: string;
   subtitle: string;
   trailing: string;
   label: string;
   onPress: () => void;
+  accentColor?: string;
 }) {
   return (
     <Pressable
@@ -100,6 +102,7 @@ function PlaceRow({
         pressed && placeRowStyles.rowPressed,
       ]}
     >
+      <View style={[placeRowStyles.accentLine, { backgroundColor: accentColor ?? "#65cbd2" }]} />
       <View style={placeRowStyles.pin}>
         <Svg width={19} height={23} viewBox="0 0 24 30">
           <Path d="M12 28S3.7 18.1 3.7 11.5a8.3 8.3 0 1 1 16.6 0C20.3 18.1 12 28 12 28Z" fill="#218e97" />
@@ -135,6 +138,7 @@ const placeRowStyles = StyleSheet.create({
     elevation: 1,
   },
   rowPressed: { backgroundColor: "#e9f8f9", shadowOpacity: 0.14, elevation: 4, transform: [{ scale: 0.99 }] },
+  accentLine: { width: 4, height: 42, borderRadius: 3 },
   pin: {
     width: 40,
     height: 42,
@@ -201,6 +205,8 @@ const headerOptionStyles = StyleSheet.create({
 
 function PassengerContent({ screen }: { screen: PassengerScreenName }) {
   const { passenger: p, setPassenger: setP } = useApp();
+  const pickupPlace = PLACES.filter((place) => !place.outOfZone).reduce((nearest, place) => Math.hypot(place.pos[0] - p.origin[0], place.pos[1] - p.origin[1]) < Math.hypot(nearest.pos[0] - p.origin[0], nearest.pos[1] - p.origin[1]) ? place : nearest);
+  const { width: viewportWidth } = useWindowDimensions();
   const [search, setSearch] = useState("");
   const [code, setCode] = useState("");
   const otpInputs = useRef<({ focus: () => void } | null)[]>([]);
@@ -216,10 +222,12 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [detailDescription, setDetailDescription] = useState("");
-  const [travelOptions, setTravelOptions] = useState<string[]>([]);
   const [priceDraft, setPriceDraft] = useState(p.price.toFixed(2));
   const [loginPhone, setLoginPhone] = useState(p.user.phone);
   const [loginPassword, setLoginPassword] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const patch = (value: Partial<typeof p>) =>
     setP((prev) => ({ ...prev, ...value }));
   const user = (value: Partial<typeof p.user>) =>
@@ -263,6 +271,12 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
       return;
     }
     if (screen === "otp") {
+      router.replace("/pasajero/password");
+      return;
+    }
+    if (screen === "password") {
+      setPassword("WokiDemo123");
+      setConfirmPassword("WokiDemo123");
       router.replace("/rol");
       return;
     }
@@ -360,6 +374,7 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
     if (p.phase) return setDrawerOpen(true);
     if (screen === "phone" || screen === "login") return router.replace("/inicio");
     if (screen === "otp") return goPassenger("phone", true);
+    if (screen === "password") return goPassenger("otp", true);
     if (screen === "register") {
       if (identityStage === "photo") return setIdentityStage("verify");
       if (identityStage === "verify") return setIdentityStage("dni");
@@ -369,7 +384,7 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
     if (p.authenticated) return goPassenger("home", true);
     router.replace("/rol");
   };
-  const offers = makeOffers(p.price, p.pax);
+  const offers = makeOffers(p.price, p.pax).slice(0, 3);
   const destinationPool = [...p.saved, ...PLACES.filter((place) => !p.saved.some((saved) => saved.name === place.name))];
   const searchResults = destinationPool.filter((place) =>
     `${place.name} ${place.detail}`
@@ -377,6 +392,8 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
       .includes(search.toLowerCase()),
   );
   const isSearchingHome = !!search.trim();
+  const passwordMeetsRules = password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
+  const canCreatePassword = passwordMeetsRules && password === confirmPassword;
   const offerDraftValue = Number.parseFloat(priceDraft);
   const offerBelowMinimum = !!p.dest && (!Number.isFinite(offerDraftValue) || offerDraftValue < p.dest.price);
   const homeResults = (isSearchingHome ? searchResults : destinationPool).slice(0, 8);
@@ -393,33 +410,35 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
       destinationTitle={screen === "home"}
       softTitle={mapBackground}
       actionsBesideTitle={screen === "payment" || screen === "review"}
-      squareHeader={["login", "phone", "otp", "register", "terms", "emergency"].includes(screen)}
+      squareHeader={["login", "phone", "otp", "password", "register", "terms", "emergency"].includes(screen)}
       contentMaxHeight={screen === "offers" ? 480 : undefined}
-      back={screen === "home" || p.phase || ["phone", "otp", "login", "register"].includes(screen) ? undefined : back}
+      back={screen === "home" || p.phase || ["phone", "otp", "password", "login", "register"].includes(screen) ? undefined : back}
       mapBackground={mapBackground}
       mapOrigin={p.origin}
       mapDest={p.dest?.pos}
       showNearbyDrivers={screen === "searching"}
+      pickupSelection={screen === "home"}
       onMapOriginChange={(origin) => patch({ origin })}
       left={p.authenticated && !isPassengerPublicScreen(screen) ? <DrawerTrigger onPress={() => setDrawerOpen(true)} /> : undefined}
-      stickyContent={screen === "offers" ? <View /> : undefined}
-      panelActions={screen === "offers" ? (
+      stickyContent={screen === "offers" || screen === "searching" ? <View /> : undefined}
+      panelActions={screen === "offers" || screen === "searching" ? (
         <Pressable accessibilityRole="button" accessibilityLabel="Cancelar búsqueda" onPress={reset} style={({ pressed }) => [passengerFlowStyles.cancelSearchButton, pressed && { opacity: 0.75 }]}><Text style={passengerFlowStyles.cancelSearchText}>Cancelar búsqueda</Text></Pressable>
       ) : undefined}
+      overlay={drawerOpen ? <PassengerDrawer close={() => setDrawerOpen(false)} onNavigate={(target) => { setDrawerOpen(false); goPassenger(target); }} activeScreen={screen} name={(p.user.first + " " + p.user.last + " " + p.user.lastMaterno).trim()} phone={p.user.phone} photo={p.user.photo} logout={() => { setDrawerOpen(false); setP(newPassenger()); router.replace("/rol"); }} support={() => { setDrawerOpen(false); void openLink(waLink(SUPPORT_PHONE, "Hola, necesito ayuda con Woki.")); }} /> : null}
       right={
         <View style={headerOptionStyles.group}>
           {isPassengerTripScreen(screen) && <PassengerDemoButton onPress={advanceDemo} />}
-          {["searching", "noOffers"].includes(screen) && (
+          {screen === "noOffers" && (
             <HeaderOption label="Cancelar" danger onPress={reset} />
           )}
         </View>
       }
-      bottomActions={["login", "phone", "otp", "register", "terms"].includes(screen) ? <>
+      bottomActions={["login", "phone", "otp", "password", "register", "terms"].includes(screen) ? <>
         <Pressable accessibilityRole="button" onPress={back} style={passengerFlowStyles.authBack}><Text style={passengerFlowStyles.authBackText}>‹  Volver</Text></Pressable>
         <PassengerDemoButton onPress={advanceDemo} />
       </> : undefined}
     >
-      {["phone", "otp", "register"].includes(screen) && (
+      {["phone", "otp", "password", "register"].includes(screen) && (
         <AuthProgress screen={screen} />
       )}
       {screen === "login" && (
@@ -493,7 +512,7 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
           </View>
           <Button
             disabled={code.length !== 6}
-            onPress={() => router.replace("/rol")}
+            onPress={() => router.replace("/pasajero/password")}
           >
             Verificar
           </Button>
@@ -506,6 +525,23 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
           >
             {otpSeconds ? `Reenviar en ${otpSeconds} s` : "Reenviar código"}
           </Button>
+        </>
+      )}
+      {screen === "password" && (
+        <>
+          <Text style={s.text}>Crea una contraseña para proteger el acceso a tu cuenta.</Text>
+          <Field label="Contraseña" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoComplete="new-password" placeholder="Crea una contraseña" />
+          <View style={passengerFlowStyles.passwordRules}>
+            {[
+              [password.length >= 8, "Al menos 8 caracteres"],
+              [/[A-Z]/.test(password) && /[a-z]/.test(password), "Una mayúscula y una minúscula"],
+              [/\d/.test(password), "Al menos un número"],
+            ].map(([valid, label]) => <Text key={String(label)} style={[passengerFlowStyles.passwordRule, valid && passengerFlowStyles.passwordRuleValid]}>{valid ? "✓" : "•"}  {label}</Text>)}
+          </View>
+          <Field label="Confirma tu contraseña" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={!showPassword} autoComplete="new-password" placeholder="Repite tu contraseña" />
+          {!!confirmPassword && password !== confirmPassword && <Text style={passengerFlowStyles.passwordMismatch}>Las contraseñas no coinciden.</Text>}
+          <Pressable accessibilityRole="button" accessibilityState={{ checked: showPassword }} onPress={() => setShowPassword((visible) => !visible)} style={passengerFlowStyles.passwordVisibility}><Text style={passengerFlowStyles.passwordVisibilityText}>{showPassword ? "Ocultar contraseñas" : "Mostrar contraseñas"}</Text></Pressable>
+          <Button disabled={!canCreatePassword} onPress={() => router.replace("/rol")}>Crear contraseña</Button>
         </>
       )}
       {screen === "register" && (
@@ -581,14 +617,16 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
             {!!search && <Pressable accessibilityRole="button" accessibilityLabel="Borrar búsqueda" onPress={() => setSearch("")} style={passengerFlowStyles.clearSearch}><Text style={passengerFlowStyles.clearSearchText}>×</Text></Pressable>}
           </View>
           <Text style={passengerFlowStyles.sectionHeading}>{isSearchingHome ? "Resultados" : "Lugares frecuentes"}</Text>
+          {!isSearchingHome && <Text style={passengerFlowStyles.pickupHint}>Desliza el mapa: el pin central marca tu punto de recojo.</Text>}
           <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={passengerFlowStyles.frequentPlacesScroll}>
           {homeResults.map((place, index) => (
             <PlaceRow
               key={place.name + "-" + index}
               title={place.name}
-              subtitle={place.detail + " · " + place.km + " km · " + place.min + " min"}
-              trailing={place.outOfZone ? "Cobertura" : soles(place.price)}
+              subtitle={place.detail + " · " + place.km + " km"}
+              trailing={place.outOfZone ? "Cobertura" : isSearchingHome ? soles(place.price) : "›"}
               label={"Elegir destino " + place.name + ", " + place.detail}
+              accentColor={place.accentColor}
               onPress={() => pick(place)}
             />
           ))}
@@ -613,7 +651,7 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
               <PlaceRow
                 key={`${place.name}-${index}`}
                 title={place.name}
-                subtitle={`${place.detail} · ${place.km} km · ${place.min} min`}
+                subtitle={`${place.detail} · ${place.km} km`}
                 trailing={place.outOfZone ? "Cobertura" : soles(place.price)}
                 label={
                   place.outOfZone
@@ -635,7 +673,7 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
           <View style={passengerFlowStyles.tripDestination}>
             <View style={passengerFlowStyles.routeTimeline}><View style={passengerFlowStyles.routeOriginDot} /><View style={passengerFlowStyles.routeLine} /><View style={passengerFlowStyles.routeEndPin}><Text style={passengerFlowStyles.routeEndPinGlyph}>•</Text></View></View>
               <View style={{ flex: 1, gap: 12 }}>
-              <View><Text style={passengerFlowStyles.miniLabel}>RECOJO</Text><Text style={passengerFlowStyles.destinationText}>Jr. Lima, Chaupimarca</Text></View>
+              <View><Text style={passengerFlowStyles.miniLabel}>RECOJO</Text><Text style={passengerFlowStyles.destinationText}>{pickupPlace.name}, {pickupPlace.detail}</Text></View>
               <View><Text style={passengerFlowStyles.miniLabel}>DESTINO</Text><Text style={passengerFlowStyles.destinationText}>{p.dest.name}</Text><Text style={passengerFlowStyles.destinationMeta}>{p.dest.detail} · {p.dest.km} km · {p.dest.min} min</Text></View>
             </View>
           </View>
@@ -695,15 +733,12 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
               <View style={passengerFlowStyles.confirmActions}>
                 <View style={[passengerFlowStyles.confirmField, paymentOpen && passengerFlowStyles.confirmFieldOverlay]}><Text style={passengerFlowStyles.confirmFieldLabel}>Método de pago</Text><Pressable accessibilityRole="button" accessibilityLabel={`Método de pago: ${p.pay ?? "Sin elegir"}`} accessibilityState={{ expanded: paymentOpen, selected: !!p.pay }} onPress={() => { setDetailsOpen(false); setPaymentOpen((open) => !open); }} style={({ pressed }) => [passengerFlowStyles.confirmAction, p.pay && { borderColor: "#087f91", backgroundColor: "#dff7f8" }, pressed && { opacity: 0.72 }]}>
                   <Svg width={20} height={20} viewBox="0 0 24 24"><Rect x="3" y="5" width="18" height="14" rx="2.5" fill="none" stroke="#087f91" strokeWidth="1.8" /><Circle cx="12" cy="12" r="2.7" fill="none" stroke="#087f91" strokeWidth="1.7" /><Path d="M6.5 9h1m9 6h1" stroke="#087f91" strokeWidth="1.7" strokeLinecap="round" /></Svg>
-                  <Text numberOfLines={1} style={passengerFlowStyles.confirmActionText}>{p.pay ?? "Elegir"}</Text><ConfirmChevron />
-                </Pressable>{paymentOpen && <View style={[passengerFlowStyles.confirmPopover, passengerFlowStyles.paymentMenu]}><Text style={passengerFlowStyles.popoverTitle}>Elige cómo pagar</Text>{(["Efectivo", "Yape", "Plin"] as const).map((method) => <Pressable key={method} accessibilityRole="radio" accessibilityState={{ checked: p.pay === method }} onPress={() => { patch({ pay: method }); setPaymentOpen(false); }} style={({ pressed }) => [passengerFlowStyles.paymentMenuOption, pressed && passengerFlowStyles.menuOptionPressed]}><Text style={passengerFlowStyles.paymentMenuText}>{method}</Text><View style={[passengerFlowStyles.radio, p.pay === method && passengerFlowStyles.radioSelected]}>{p.pay === method && <View style={passengerFlowStyles.radioDot} />}</View></Pressable>)}</View>}</View>
-                <View style={[passengerFlowStyles.confirmField, detailsOpen && passengerFlowStyles.confirmFieldOverlay]}><Text style={passengerFlowStyles.confirmFieldLabel}>Detalles</Text><Pressable accessibilityRole="button" accessibilityLabel="Editar detalles del viaje" accessibilityState={{ expanded: detailsOpen }} onPress={() => { setPaymentOpen(false); setDetailsOpen((open) => !open); }} style={({ pressed }) => [passengerFlowStyles.confirmAction, pressed && { opacity: 0.72 }]}>
+                  <Text numberOfLines={1} style={passengerFlowStyles.confirmActionText}>{p.pay === "Otros" ? "Yape / Plin / Otros" : p.pay ?? "ELEGIR"}</Text><ConfirmChevron />
+                </Pressable>{paymentOpen && <View style={[passengerFlowStyles.confirmPopover, passengerFlowStyles.paymentMenu]}><Text style={passengerFlowStyles.popoverTitle}>Métodos de pago</Text><Pressable accessibilityRole="radio" accessibilityState={{ checked: p.pay === "Efectivo" }} onPress={() => { patch({ pay: "Efectivo" }); setPaymentOpen(false); }} style={({ pressed }) => [passengerFlowStyles.paymentChoice, p.pay === "Efectivo" && passengerFlowStyles.paymentChoiceSelected, pressed && passengerFlowStyles.menuOptionPressed]}><Text style={passengerFlowStyles.paymentChoiceText}>Efectivo</Text><View style={[passengerFlowStyles.radio, p.pay === "Efectivo" && passengerFlowStyles.radioSelected]}>{p.pay === "Efectivo" && <View style={passengerFlowStyles.radioDot} />}</View></Pressable><Pressable accessibilityRole="radio" accessibilityState={{ checked: p.pay === "Otros" }} onPress={() => { patch({ pay: "Otros" }); setPaymentOpen(false); }} style={({ pressed }) => [passengerFlowStyles.paymentChoice, p.pay === "Otros" && passengerFlowStyles.paymentChoiceSelected, pressed && passengerFlowStyles.menuOptionPressed]}><Text style={passengerFlowStyles.paymentChoiceText}>Yape / Plin / Otros</Text><View style={[passengerFlowStyles.radio, p.pay === "Otros" && passengerFlowStyles.radioSelected]}>{p.pay === "Otros" && <View style={passengerFlowStyles.radioDot} />}</View></Pressable></View>}</View>
+                <View style={[passengerFlowStyles.confirmField, detailsOpen && passengerFlowStyles.confirmFieldOverlay]}><Text style={passengerFlowStyles.confirmFieldLabel}>Detalles</Text><Pressable accessibilityRole="button" accessibilityLabel="Editar descripción del viaje" accessibilityState={{ expanded: detailsOpen }} onPress={() => { setPaymentOpen(false); setDetailsOpen((open) => !open); }} style={({ pressed }) => [passengerFlowStyles.confirmAction, passengerFlowStyles.detailsAction, pressed && { opacity: 0.72 }]}>
                   <Svg width={20} height={20} viewBox="0 0 24 24"><Rect x="5" y="3" width="14" height="18" rx="2" fill="none" stroke="#087f91" strokeWidth="1.8" /><Path d="M8.5 8h7m-7 4h7m-7 4h4" stroke="#087f91" strokeWidth="1.7" strokeLinecap="round" /></Svg>
-                  <Text numberOfLines={1} style={passengerFlowStyles.confirmActionText}>{travelOptions.length ? travelOptions.map((option) => option === "Mucho equipaje" ? "Equipaje" : option).join(" · ") : detailDescription.trim() ? "Descripción" : "Ninguno"}</Text><ConfirmChevron />
-                </Pressable>{detailsOpen && <View style={[passengerFlowStyles.confirmPopover, passengerFlowStyles.detailsMenu]}><Text style={passengerFlowStyles.popoverTitle}>Detalles del viaje</Text><View style={passengerFlowStyles.travelOptions}>{["Bebé", "Discapacidad", "Mascota", "Mucho equipaje"].map((option) => {
-                  const selected = travelOptions.includes(option);
-                  return <Pressable key={option} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} onPress={() => setTravelOptions((current) => selected ? current.filter((item) => item !== option) : [...current, option])} style={[passengerFlowStyles.travelOption, selected && passengerFlowStyles.travelOptionSelected]}><Text style={[passengerFlowStyles.travelOptionText, selected && passengerFlowStyles.travelOptionTextSelected]}>{option}</Text></Pressable>;
-                })}</View><Field label="Descripción (opcional)" value={detailDescription} onChangeText={setDetailDescription} placeholder="Ej. Llevo una maleta" multiline={false} numberOfLines={1} maxLength={80} style={{ height: 42, minHeight: 42, paddingVertical: 6 }} /><Button compact centered onPress={() => { patch({ notes: [detailDescription.trim(), ...travelOptions].filter(Boolean).join(" · ") }); setDetailsOpen(false); }}>Listo</Button></View>}</View>
+                  <Text numberOfLines={1} style={[passengerFlowStyles.confirmActionText, passengerFlowStyles.descriptionActionText]}>{detailDescription.trim() || "Ninguno"}</Text><ConfirmChevron />
+                </Pressable>{detailsOpen && <View style={[passengerFlowStyles.confirmPopover, passengerFlowStyles.detailsMenu, { width: Math.min(viewportWidth - 32, 360), right: 0 }]}><Text style={[passengerFlowStyles.popoverTitle, passengerFlowStyles.descriptionPopoverTitle]}>Descripción del viaje</Text><Field label="Tu descripción" value={detailDescription} onChangeText={setDetailDescription} placeholder="Ej. Llevo una maleta" multiline={false} numberOfLines={1} maxLength={80} style={{ height: 42, minHeight: 42, paddingVertical: 6, fontSize: 15, textAlign: "left" }} /><View style={passengerFlowStyles.descriptionPopoverActions}><Pressable accessibilityRole="button" onPress={() => { setDetailDescription(p.notes); setDetailsOpen(false); }} style={[passengerFlowStyles.descriptionPopoverButton, passengerFlowStyles.descriptionCancelButton]}><Text style={passengerFlowStyles.descriptionCancelText}>Cancelar</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { patch({ notes: detailDescription.trim() }); setDetailsOpen(false); }} style={[passengerFlowStyles.descriptionPopoverButton, passengerFlowStyles.descriptionSaveButton]}><Text style={passengerFlowStyles.descriptionSaveText}>Guardar</Text></Pressable></View></View>}</View>
               </View>
               <Button disabled={!p.reference.trim() || !p.pay || offerBelowMinimum || !!p.debt} onPress={() => goPassenger("searching")}>Buscar</Button>
             </>
@@ -726,18 +761,16 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
       )}
       {screen === "offers" && (
         <>
-          {offers.map((offer) => (
+          {offers.slice(0, 3).map((offer) => (
             <Card key={offer.id} compact>
               <View style={passengerFlowStyles.compactOfferTop}>
                 <View style={passengerFlowStyles.compactAvatar}><Text style={passengerFlowStyles.driverInitial}>{offer.name.slice(0, 1)}</Text></View>
-                <View style={{ flex: 1, minWidth: 0, gap: 2 }}><Text numberOfLines={1} style={passengerFlowStyles.compactDriverName}>{offer.name}</Text><Text style={passengerFlowStyles.compactTripMeta}>{offer.trips} viajes · <Text style={passengerFlowStyles.compactRating}>★ {offer.rating}</Text></Text></View>
+                <View style={{ flex: 1, minWidth: 0, gap: 1 }}><View style={passengerFlowStyles.compactIdentityRow}><Text numberOfLines={1} style={passengerFlowStyles.compactDriverName}>{offer.name}</Text><Pressable accessibilityRole="button" accessibilityLabel={`Ver perfil de ${offer.name}`} onPress={() => setProfile(offer)} style={({ pressed }) => [passengerFlowStyles.profileInlineButton, pressed && { opacity: 0.7 }]}><Text style={passengerFlowStyles.profileInlineText}>Ver perfil</Text></Pressable></View><View style={passengerFlowStyles.compactDriverMetaRow}><Text style={passengerFlowStyles.compactTripMeta}>{offer.trips} viajes · <Text style={passengerFlowStyles.compactRating}>★ {offer.rating}</Text></Text></View></View>
                 <View style={passengerFlowStyles.compactPrice}><Text style={passengerFlowStyles.compactPriceLabel}>{offer.price === p.price ? "TU TARIFA" : "CONTRAOFERTA"}</Text><Text style={passengerFlowStyles.compactPriceValue}>{soles(offer.price)}</Text></View>
               </View>
-              <View style={passengerFlowStyles.compactVehicle}><Text numberOfLines={1} style={passengerFlowStyles.compactCar}>{offer.car}</Text><Text numberOfLines={1} style={passengerFlowStyles.compactVehicleMeta}>{offer.color} · {offer.plate}</Text></View>
+              <View style={passengerFlowStyles.vehicleFactsRow}><View style={passengerFlowStyles.vehicleFactCard}><Text style={passengerFlowStyles.vehicleFactLabel}>MARCA Y MODELO</Text><Text numberOfLines={2} style={passengerFlowStyles.vehicleFactValue}>{offer.car}</Text></View><View style={passengerFlowStyles.vehicleFactCard}><Text style={passengerFlowStyles.vehicleFactLabel}>COLOR</Text><View style={passengerFlowStyles.vehicleFactColor}><View style={[passengerFlowStyles.vehicleColorDot, { backgroundColor: vehicleColorValue(offer.color) }]} /><Text numberOfLines={1} style={passengerFlowStyles.vehicleFactValue}>{offer.color}</Text></View></View><View style={passengerFlowStyles.vehicleFactCard}><Text style={passengerFlowStyles.vehicleFactLabel}>PLACA</Text><Text numberOfLines={1} style={passengerFlowStyles.vehicleFactValue}>{offer.plate}</Text></View></View><View style={passengerFlowStyles.offerDistanceRow}><Text style={passengerFlowStyles.offerDistance}>A {offer.distanceKm.toFixed(1)} km</Text><Text style={passengerFlowStyles.offerSeats}>{offer.seats} asientos</Text></View>
               <View style={passengerFlowStyles.compactOfferBottom}>
-                <Text style={passengerFlowStyles.compactEta}>Llega en {offer.eta} min · {offer.seats} asientos</Text>
                 <View style={passengerFlowStyles.compactOfferActions}>
-                  <Button compact tone="plain" onPress={() => setProfile(offer)}>Ver perfil</Button>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Elegir a ${offer.name}`}
@@ -745,7 +778,7 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
                   setConfirmation({
                     title: "¿Elegir este conductor?",
                     message: "",
-                    summary: { eyebrow: "RESUMEN DE VIAJE", title: offer.name, detail: `${offer.car} · ${offer.plate} · llega en ${offer.eta} min`, price: soles(offer.price) },
+                    summary: { eyebrow: "RESUMEN DE VIAJE", title: offer.name, detail: `${offer.car} · ${offer.color} · ${offer.plate} · a ${offer.distanceKm.toFixed(1)} km`, price: soles(offer.price) },
                     hideClose: true,
                     action: () => {
                       patch({ driver: offer, phase: "enroute" });
@@ -904,7 +937,7 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
             {screen === "finished" && (
               <>
                 <View style={passengerFlowStyles.finishedHero}><View style={passengerFlowStyles.finishedMark}><Svg width={37} height={42} viewBox="0 0 40 46"><Path d="M20 43S5 27.4 5 16A15 15 0 1 1 35 16c0 11.4-15 27-15 27Z" fill="#ffbd32"/><Circle cx="20" cy="16" r="9" fill="#fff"/><Path d="m15.5 16 3 3 6-6" fill="none" stroke="#087f91" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></Svg></View><View style={{ flex: 1, gap: 3 }}><Text style={passengerFlowStyles.finishedEyebrow}>VIAJE COMPLETADO</Text><Text style={passengerFlowStyles.finishedTitle}>¡Llegaste a tu destino!</Text><Text style={passengerFlowStyles.finishedCopy}>{p.dest.name} · {soles(p.driver.price)}</Text></View></View>
-                <View style={passengerFlowStyles.travelReport}><Text style={passengerFlowStyles.reportEyebrow}>RESUMEN DE TU VIAJE</Text><Text style={passengerFlowStyles.reportDriver}>{p.driver.name}</Text><Text style={passengerFlowStyles.reportDetails}>{p.driver.car} {p.driver.color} · placa {p.driver.plate}</Text><Text style={passengerFlowStyles.reportDetails}>Desde Jr. Lima, Chaupimarca hasta {p.dest.name}</Text></View>
+                <View style={passengerFlowStyles.travelReport}><Text style={passengerFlowStyles.reportEyebrow}>RESUMEN DE TU VIAJE</Text><Text style={passengerFlowStyles.reportDriver}>{p.driver.name}</Text><Text style={passengerFlowStyles.reportDetails}>{p.driver.car} {p.driver.color} · placa {p.driver.plate}</Text><Text style={passengerFlowStyles.reportDetails}>Desde el punto que fijaste hasta {p.dest.name}</Text></View>
                 <Text style={s.heading}>¿Cómo estuvo tu viaje?</Text>
                 <Stars value={stars} onChange={setStars} />
                 <Field
@@ -947,24 +980,12 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
           <View style={passengerFlowStyles.driverProfileHero}>
             <View style={passengerFlowStyles.driverProfileAvatar}><Text style={passengerFlowStyles.driverProfileInitial}>{profile.name.slice(0, 1)}</Text></View>
             <View style={{ flex: 1, gap: 5 }}><Text style={passengerFlowStyles.driverProfileName}>{profile.name}</Text><Text style={passengerFlowStyles.driverProfileRating}>★ {profile.rating.toFixed(1)} <Text style={passengerFlowStyles.driverProfileRatingMeta}>· {profile.trips} viajes</Text></Text></View>
-            <View style={passengerFlowStyles.verifiedPill}><Text style={passengerFlowStyles.verifiedText}>✓ Verificado</Text></View>
           </View>
-          <View style={passengerFlowStyles.driverProfileVehicle}><Text style={passengerFlowStyles.driverProfileVehicleLabel}>VEHÍCULO</Text><Text style={passengerFlowStyles.driverProfileVehicleName}>{profile.car}</Text><Text style={passengerFlowStyles.driverProfileVehicleMeta}>{profile.color} · {profile.plate}</Text></View>
+          <View style={passengerFlowStyles.profileStats}><View style={passengerFlowStyles.profileStat}><Text style={passengerFlowStyles.profileStatValue}>{profile.trips}</Text><Text style={passengerFlowStyles.profileStatLabel}>viajes</Text></View><View style={passengerFlowStyles.profileStatDivider} /><View style={passengerFlowStyles.profileStat}><Text style={passengerFlowStyles.profileStatValue}>A {profile.distanceKm.toFixed(1)} km</Text><Text style={passengerFlowStyles.profileStatLabel}>del recojo</Text></View><View style={passengerFlowStyles.profileStatDivider} /><View style={passengerFlowStyles.profileStat}><Text style={passengerFlowStyles.profileStatValue}>{profile.seats}</Text><Text style={passengerFlowStyles.profileStatLabel}>asientos</Text></View></View>
+          <View style={passengerFlowStyles.driverProfileVehicle}><Text style={passengerFlowStyles.driverProfileVehicleLabel}>VEHÍCULO</Text><Text style={passengerFlowStyles.driverProfileVehicleName}>{profile.car}</Text><View style={passengerFlowStyles.profileVehicleMeta}><View style={[passengerFlowStyles.vehicleColorDot, { backgroundColor: vehicleColorValue(profile.color) }]} /><Text style={passengerFlowStyles.driverProfileVehicleMeta}>{profile.color}</Text><View style={passengerFlowStyles.profilePlate}><Text style={passengerFlowStyles.plateLabel}>PLACA</Text><Text style={passengerFlowStyles.plateValue}>{profile.plate}</Text></View></View></View>
           <Text style={passengerFlowStyles.reviewsHeading}>Reseñas de pasajeros</Text>
           {profile.reviews.map((review) => <View key={review.name} style={passengerFlowStyles.reviewCard}><View style={passengerFlowStyles.reviewHead}><View style={passengerFlowStyles.reviewAuthor}><View style={passengerFlowStyles.reviewAvatar}><Text style={passengerFlowStyles.reviewAvatarText}>{review.name.split(" ").map((part) => part[0]).join("").replace(/[^A-Za-zÁÉÍÓÚÜÑ]/g, "").slice(0, 2).toUpperCase()}</Text></View><Text style={passengerFlowStyles.reviewName}>{review.name}</Text></View><View style={passengerFlowStyles.reviewRating}><Text style={passengerFlowStyles.reviewStars}>{"★".repeat(review.stars)}</Text><Text style={passengerFlowStyles.reviewRatingValue}>{review.stars.toFixed(1)}</Text></View></View><Text style={passengerFlowStyles.reviewText}>{review.text}</Text></View>)}
         </Sheet>
-      )}
-      {drawerOpen && (
-        <PassengerDrawer
-          close={() => setDrawerOpen(false)}
-          onNavigate={(target) => { setDrawerOpen(false); goPassenger(target); }}
-          activeScreen={screen}
-          name={`${p.user.first} ${p.user.last} ${p.user.lastMaterno}`.trim()}
-          phone={p.user.phone}
-          photo={p.user.photo}
-          logout={() => { setDrawerOpen(false); setP(newPassenger()); router.replace("/rol"); }}
-          support={() => { setDrawerOpen(false); void openLink(waLink(SUPPORT_PHONE, "Hola, necesito ayuda con Woki.")); }}
-        />
       )}
       <LegalTermsSheet visible={showTerms} close={() => setShowTerms(false)} />
       <Confirm value={confirmation} close={() => setConfirmation(null)} />
@@ -972,17 +993,26 @@ function PassengerContent({ screen }: { screen: PassengerScreenName }) {
   );
 }
 
+function vehicleColorValue(color: string) {
+  const normalized = color.toLowerCase();
+  if (normalized.includes("blanco")) return "#f8fbfc";
+  if (normalized.includes("rojo")) return "#e34d4d";
+  if (normalized.includes("plata") || normalized.includes("gris")) return "#aebbc0";
+  if (normalized.includes("negro")) return "#263238";
+  return "#218e97";
+}
+
 function ConfirmChevron() {
   return <View style={passengerFlowStyles.confirmChevron}><Svg width={18} height={18} viewBox="0 0 16 16"><Path d="m3 5.5 5 5 5-5" fill="none" stroke="#087f91" strokeWidth={2.3} strokeLinecap="round" strokeLinejoin="round" /></Svg></View>;
 }
 
 function AuthProgress({ screen }: { screen: string }) {
-  const steps = ["phone", "otp", "register"];
+  const steps = ["phone", "otp", "password", "register"];
   const current = Math.max(0, steps.indexOf(screen));
-  const labels = ["Celular", "Código", "Identidad"];
+  const labels = ["Celular", "Código", "Contraseña", "Identidad"];
   return (
     <View style={passengerFlowStyles.progressWrap} accessibilityLabel={`Paso ${current + 1} de ${steps.length}: ${labels[current]}`}>
-      <View style={passengerFlowStyles.progressTop}><Text style={passengerFlowStyles.progressStep}>PASO 0{current + 1} / 03</Text><Text style={passengerFlowStyles.progressLabel}>{labels[current]}</Text></View>
+      <View style={passengerFlowStyles.progressTop}><Text style={passengerFlowStyles.progressStep}>PASO 0{current + 1} / 04</Text><Text style={passengerFlowStyles.progressLabel}>{labels[current]}</Text></View>
       <View style={passengerFlowStyles.progressTrack}><View style={[passengerFlowStyles.progressFill, { width: `${((current + 1) / steps.length) * 100}%` }]} /></View>
     </View>
   );
@@ -1000,8 +1030,9 @@ const passengerFlowStyles = StyleSheet.create({
   helperDot: { width: 20, height: 20, overflow: "hidden", textAlign: "center", textAlignVertical: "center", borderRadius: 10, color: "#fff", backgroundColor: "#218e97", fontSize: 12, fontWeight: "800" },
   helperText: { flex: 1, color: "#526e73", fontSize: 12, lineHeight: 17 },
   legalInline: { alignSelf: "center", paddingVertical: 5 }, legalInlineText: { color: "#111", fontSize: 11, textDecorationLine: "underline" },
+  passwordRules: { gap: 5, paddingVertical: 3 }, passwordRule: { color: "#526e73", fontSize: 12, lineHeight: 18, fontWeight: "600" }, passwordRuleValid: { color: "#087f91", fontWeight: "800" }, passwordMismatch: { color: "#b4232d", fontSize: 12, fontWeight: "700" }, passwordVisibility: { minHeight: 36, alignSelf: "flex-end", justifyContent: "center", paddingHorizontal: 8 }, passwordVisibilityText: { color: "#087f91", fontSize: 12, fontWeight: "800", textDecorationLine: "underline" },
   otpGroup: { flexDirection: "row", justifyContent: "space-between", gap: 7, marginVertical: 8 }, otpDigit: { flex: 1, maxWidth: 52, height: 58, borderRadius: 14, borderWidth: 1.5, borderColor: "#9edce1", backgroundColor: "#fff", color: "#111", fontSize: 24, fontWeight: "900", textAlign: "center" },
-  fixedActions: { flexDirection: "row", gap: 8, marginBottom: 8 }, fixedAction: { flex: 1, minHeight: 42, justifyContent: "center", alignItems: "center", borderRadius: 13, borderWidth: 1, borderColor: "#a9dfe3", backgroundColor: "#f5fcfc" }, fixedActionText: { color: "#111", fontSize: 12, fontWeight: "800" }, fixedSearchRow: { flexDirection: "row", gap: 10, alignItems: "center" }, fixedFare: { minWidth: 92, gap: 1 }, fixedFareLabel: { color: "#111", fontSize: 9, fontWeight: "900", letterSpacing: 0.8 }, fixedFareValue: { color: "#111", fontSize: 19, fontWeight: "900" }, travelOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, travelOption: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 18, borderWidth: 1, borderColor: "#bfe5e9", backgroundColor: "#fff" }, travelOptionSelected: { borderColor: "#087f91", backgroundColor: "#dff7f8" }, travelOptionText: { color: "#111", fontSize: 12, fontWeight: "700" }, travelOptionTextSelected: { color: "#005b66", fontWeight: "900" },
+  fixedActions: { flexDirection: "row", gap: 8, marginBottom: 8 }, fixedAction: { flex: 1, minHeight: 42, justifyContent: "center", alignItems: "center", borderRadius: 13, borderWidth: 1, borderColor: "#a9dfe3", backgroundColor: "#f5fcfc" }, fixedActionText: { color: "#111", fontSize: 12, fontWeight: "800" }, fixedSearchRow: { flexDirection: "row", gap: 10, alignItems: "center" }, fixedFare: { minWidth: 92, gap: 1 }, fixedFareLabel: { color: "#111", fontSize: 9, fontWeight: "900", letterSpacing: 0.8 }, fixedFareValue: { color: "#111", fontSize: 19, fontWeight: "900" },
   pickupCard: { position: "relative", marginTop: 9, flexDirection: "row", alignItems: "center", gap: 12, padding: 13, borderRadius: 17, backgroundColor: "#def5f7", borderWidth: 1, borderColor: "#bfe5e9" },
   pickupConnector: { position: "absolute", left: 31, bottom: "100%", width: 2, height: 12, backgroundColor: "#5bc5ce" },
   destinationSearch: { minHeight: 55, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 15, borderRadius: 28, backgroundColor: "#fff", shadowColor: "#0d5961", shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
@@ -1013,7 +1044,8 @@ const passengerFlowStyles = StyleSheet.create({
   pickupName: { color: "#0d2f34", fontSize: 14, fontWeight: "800" },
   pickupDetail: { color: "#526e73", fontSize: 11 },
   sectionTitle: { marginTop: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  sectionHeading: { color: "#0d2f34", fontSize: 15, fontWeight: "800" },
+  sectionHeading: { color: "#0d2f34", fontSize: 17, fontWeight: "900" },
+  pickupHint: { marginTop: -5, color: "#26383a", fontSize: 13, lineHeight: 18, fontWeight: "600" },
   sectionCount: { minWidth: 24, paddingHorizontal: 7, paddingVertical: 3, textAlign: "center", overflow: "hidden", borderRadius: 10, backgroundColor: "#def5f7", color: "#087f91", fontSize: 10, fontWeight: "800" },
   frequentPlacesScroll: { maxHeight: 218 },
   showPlacesButton: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderTopWidth: 1, borderColor: "#e1eff0" }, showPlacesText: { color: "#087f91", fontSize: 12, fontWeight: "800" }, showPlacesChevron: { color: "#087f91", fontSize: 16, fontWeight: "900" },
@@ -1026,16 +1058,16 @@ const passengerFlowStyles = StyleSheet.create({
   routeTimeline: { width: 16, alignItems: "center", paddingTop: 5, paddingBottom: 10 },
   routeOriginDot: { width: 9, height: 9, borderRadius: 5, borderWidth: 2, borderColor: "#218e97", backgroundColor: "#fff" },
   routeLine: { width: 1, flex: 1, minHeight: 24, marginVertical: 4, backgroundColor: "#cbe9ec" },
-  routeEndPin: { width: 12, height: 12, borderRadius: 6, alignItems: "center", justifyContent: "center", backgroundColor: "#f5a524" },
+  routeEndPin: { width: 12, height: 12, borderRadius: 6, alignItems: "center", justifyContent: "center", backgroundColor: "#218e97" },
   routeEndPinGlyph: { color: "#fff", fontSize: 10, lineHeight: 11, fontWeight: "900" },
   miniLabel: { color: "#36777d", fontSize: 10, fontWeight: "900", letterSpacing: 1 },
   destinationText: { marginTop: 2, color: "#0d2f34", fontSize: 15, lineHeight: 20, fontWeight: "800" },
-  destinationMeta: { marginTop: 3, color: "#526e73", fontSize: 12 },
+  destinationMeta: { marginTop: 3, color: "#26383a", fontSize: 13, fontWeight: "700" },
   fareCard: { gap: 12, padding: 14, borderRadius: 16, borderWidth: 1.5, borderColor: "#58cbd3", backgroundColor: "#e7f8f9", shadowColor: "#087f91", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   fareHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  fareLabel: { color: "#111", fontSize: 10, fontWeight: "900", letterSpacing: 1.2 },
-  recommendedBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 11, backgroundColor: "#d6fbf8" },
-  recommendedText: { color: "#005b66", fontSize: 10, fontWeight: "900" },
+  fareLabel: { color: "#005b66", fontSize: 12, fontWeight: "900", letterSpacing: 1.1 },
+  recommendedBadge: { paddingHorizontal: 11, paddingVertical: 7, borderRadius: 11, backgroundColor: "#bdf2f4", borderWidth: 1, borderColor: "#55bdc5" },
+  recommendedText: { color: "#004f58", fontSize: 12, fontWeight: "900" },
   fareControls: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   fareValue: { flex: 1, minWidth: 0, alignItems: "center", gap: 2 }, fareInputRow: { width: 138, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
   fareStep: { width: 48, height: 48, borderRadius: 16, borderWidth: 2, borderColor: "#72d1d8", flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#fff" },
@@ -1054,13 +1086,13 @@ const passengerFlowStyles = StyleSheet.create({
   searchingPulse: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "#c9f4f6" }, searchingDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#16a3ae" },
   searchingTitle: { color: "#0d2f34", fontSize: 14, fontWeight: "800" }, searchingCopy: { color: "#526e73", fontSize: 11, lineHeight: 16 }, searchingFare: { color: "#005b66", fontSize: 16, fontWeight: "900" },
   offerTop: { flexDirection: "row", alignItems: "center", gap: 11 }, driverAvatar: { width: 45, height: 45, alignItems: "center", justifyContent: "center", borderRadius: 15, backgroundColor: "#def5f7" }, driverInitial: { color: "#005b66", fontSize: 18, fontWeight: "900" },
-  compactOfferTop: { flexDirection: "row", alignItems: "center", gap: 9 }, compactAvatar: { width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: "#c9f4f6" }, compactDriverName: { color: "#0d3e45", fontSize: 14, fontWeight: "900" }, compactTripMeta: { color: "#65858a", fontSize: 10, fontWeight: "600" }, compactRating: { color: "#c87900", fontSize: 10, fontWeight: "900" },
-  compactPrice: { alignItems: "flex-end", gap: 2, paddingLeft: 7 }, compactPriceLabel: { color: "#3a858b", fontSize: 8, fontWeight: "900", letterSpacing: 0.5 }, compactPriceValue: { color: "#005b66", fontSize: 17, fontWeight: "900" }, compactVehicle: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12, backgroundColor: "#eff9fa" }, compactCar: { flex: 1, color: "#005b66", fontSize: 12, fontWeight: "900" }, compactVehicleMeta: { color: "#477a80", fontSize: 10, fontWeight: "700" }, compactOfferBottom: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 5 }, compactEta: { flexShrink: 1, color: "#36777d", fontSize: 10, fontWeight: "700" }, compactOfferActions: { flexDirection: "row", alignItems: "center", gap: 4 }, chooseOfferButton: { minWidth: 92, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 15, borderRadius: 11, backgroundColor: "#087f91" }, chooseOfferText: { color: "#fff", fontSize: 13, fontWeight: "900" },
+  compactOfferTop: { flexDirection: "row", alignItems: "center", gap: 9 }, compactDriverMetaRow: { flexDirection: "row", alignItems: "center", gap: 6 }, compactIdentityRow: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 7, maxWidth: "100%" }, profileInlineButton: { minHeight: 26, justifyContent: "center", paddingHorizontal: 2 }, profileInlineText: { color: "#087f91", fontSize: 11, fontWeight: "900", textDecorationLine: "underline" }, compactAvatar: { width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: "#c9f4f6" }, compactDriverName: { color: "#111", fontSize: 15, fontWeight: "900" }, compactTripMeta: { color: "#65858a", fontSize: 10, fontWeight: "600" }, compactRating: { color: "#c87900", fontSize: 10, fontWeight: "900" },
+  compactPrice: { alignItems: "flex-end", gap: 2, paddingLeft: 7 }, compactPriceLabel: { color: "#111", fontSize: 10, fontWeight: "900", letterSpacing: 0.6 }, compactPriceValue: { color: "#111", fontSize: 21, fontWeight: "900" }, vehicleFactsRow: { flexDirection: "row", gap: 7 }, vehicleFactCard: { flex: 1, minWidth: 0, minHeight: 59, justifyContent: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 7, borderRadius: 12, borderWidth: 1, borderColor: "#c6e2e5", backgroundColor: "#eff9fa" }, vehicleFactLabel: { color: "#477a80", fontSize: 9, fontWeight: "900", letterSpacing: 0.5 }, vehicleFactValue: { color: "#111", fontSize: 12, fontWeight: "900" }, vehicleFactColor: { flexDirection: "row", alignItems: "center", gap: 5, minWidth: 0 }, offerDistanceRow: { flexDirection: "row", justifyContent: "flex-start", alignItems: "center", gap: 9, paddingHorizontal: 3, paddingVertical: 2 }, offerDistance: { color: "#111", fontSize: 12, fontWeight: "900" }, offerSeats: { color: "#111", fontSize: 12, fontWeight: "900" }, vehicleColorDot: { width: 12, height: 12, borderRadius: 6, borderWidth: 1, borderColor: "#93aeb1" }, plateValue: { color: "#111", fontSize: 11, fontWeight: "900", letterSpacing: 0.4 }, compactOfferBottom: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 5 }, compactOfferActions: { flexDirection: "row", alignItems: "center", gap: 4 }, chooseOfferButton: { minWidth: 122, minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 15, borderRadius: 11, backgroundColor: "#087f91" }, chooseOfferText: { color: "#fff", fontSize: 13, fontWeight: "900" },
   rating: { paddingHorizontal: 9, paddingVertical: 7, borderRadius: 12, backgroundColor: "#ffd34e", borderWidth: 1, borderColor: "#ffad16" }, ratingText: { color: "#764500", fontSize: 12, fontWeight: "900" }, etaRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, paddingHorizontal: 10, borderRadius: 12, backgroundColor: "#d9f7f8" }, etaText: { color: "#005b66", fontSize: 11, fontWeight: "800" }, offerPrice: { color: "#005b66", fontSize: 23, fontWeight: "900" },
   offerHeading: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", paddingHorizontal: 2 }, offerHeadingTitle: { color: "#0d2f34", fontSize: 18, fontWeight: "900" }, offerHeadingMeta: { color: "#087f91", fontSize: 11, fontWeight: "800" },
   cancelSearchButton: { width: "100%", minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 16, paddingVertical: 9, borderRadius: 15, borderWidth: 1.5, borderColor: "#d92d3c", backgroundColor: "#fff0f1", shadowColor: "#a9202c", shadowOpacity: 0.14, shadowRadius: 12, shadowOffset: { width: 0, height: 3 }, elevation: 6 }, cancelSearchText: { color: "#a9202c", fontSize: 14, fontWeight: "900" },
-  confirmActions: { flexDirection: "row", gap: 10 }, confirmField: { position: "relative", flex: 1, minWidth: 0, gap: 5 }, confirmFieldOverlay: { zIndex: 30, elevation: 30 }, confirmFieldLabel: { color: "#0d2f34", fontSize: 11, fontWeight: "800" }, confirmAction: { minWidth: 0, minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1, borderColor: "#bfe5e9", backgroundColor: "#f7fcfc" }, confirmActionText: { flexShrink: 1, color: "#111", fontSize: 12, fontWeight: "800" }, confirmChevron: { width: 26, height: 26, alignItems: "center", justifyContent: "center", backgroundColor: "transparent" }, confirmPopover: { position: "absolute", bottom: 52, zIndex: 50, elevation: 16, padding: 12, borderRadius: 15, borderWidth: 1, borderColor: "#bfe5e9", backgroundColor: "#fff", shadowColor: "#0d3e45", shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } }, paymentMenu: { left: 0, right: 0, gap: 4 }, detailsMenu: { right: 0, width: 248, gap: 9 }, popoverTitle: { color: "#123c42", fontSize: 12, fontWeight: "900" }, paymentMenuOption: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8, borderRadius: 10 }, menuOptionPressed: { backgroundColor: "#effbfc" }, paymentMenuText: { color: "#183d43", fontSize: 13, fontWeight: "800" },
-  driverProfileHero: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 18, backgroundColor: "#e9f8f8", borderWidth: 1, borderColor: "#c7ebed" }, driverProfileAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#078d9a", alignItems: "center", justifyContent: "center" }, driverProfileInitial: { color: "#fff", fontSize: 23, fontWeight: "900" }, driverProfileName: { color: "#123c42", fontSize: 16, fontWeight: "900" }, driverProfileRating: { color: "#ee9e00", fontSize: 14, fontWeight: "900" }, driverProfileRatingMeta: { color: "#64868a", fontSize: 11, fontWeight: "700" }, verifiedPill: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 20, backgroundColor: "#d7f3e6" }, verifiedText: { color: "#198254", fontSize: 9, fontWeight: "900" }, driverProfileVehicle: { marginTop: 12, padding: 13, borderRadius: 16, borderWidth: 1, borderColor: "#dcebed", backgroundColor: "#fff" }, driverProfileVehicleLabel: { color: "#61868a", fontSize: 9, fontWeight: "900", letterSpacing: 0.8 }, driverProfileVehicleName: { marginTop: 4, color: "#153f45", fontSize: 15, fontWeight: "900" }, driverProfileVehicleMeta: { marginTop: 3, color: "#638489", fontSize: 12, fontWeight: "700" }, reviewsHeading: { marginTop: 16, marginBottom: 8, color: "#143d43", fontSize: 14, fontWeight: "900" }, reviewCard: { marginBottom: 8, padding: 12, borderRadius: 15, backgroundColor: "#f7fbfb", borderWidth: 1, borderColor: "#e1eff0", gap: 6 }, reviewHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, reviewAuthor: { flexDirection: "row", alignItems: "center", gap: 8 }, reviewAvatar: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "#d8f3f4" }, reviewAvatarText: { color: "#087f91", fontSize: 11, fontWeight: "900" }, reviewRating: { flexDirection: "row", alignItems: "center", gap: 5 }, reviewName: { color: "#1a4146", fontSize: 12, fontWeight: "900" }, reviewStars: { color: "#f3a900", fontSize: 12, fontWeight: "900" }, reviewRatingValue: { color: "#253e42", fontSize: 12, fontWeight: "900" }, reviewText: { color: "#527277", fontSize: 12, lineHeight: 17 },
+  confirmActions: { flexDirection: "row", gap: 10 }, confirmField: { position: "relative", flex: 1, minWidth: 0, gap: 5 }, confirmFieldOverlay: { zIndex: 30, elevation: 30 }, confirmFieldLabel: { color: "#0d2f34", fontSize: 11, fontWeight: "800" }, confirmAction: { minWidth: 0, minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, paddingHorizontal: 8, borderRadius: 12, borderWidth: 1, borderColor: "#bfe5e9", backgroundColor: "#f7fcfc" }, confirmActionText: { flexShrink: 1, color: "#111", fontSize: 12, fontWeight: "800" }, confirmChevron: { width: 26, height: 26, alignItems: "center", justifyContent: "center", backgroundColor: "transparent" }, confirmPopover: { position: "absolute", bottom: 52, zIndex: 50, elevation: 16, padding: 12, borderRadius: 15, borderWidth: 1, borderColor: "#bfe5e9", backgroundColor: "#fff", shadowColor: "#0d3e45", shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } }, paymentMenu: { left: 0, maxWidth: 300, alignSelf: "flex-start", gap: 8 }, detailsMenu: { gap: 9 }, popoverTitle: { color: "#123c42", fontSize: 12, fontWeight: "900" }, paymentChoice: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingHorizontal: 12, borderRadius: 13, borderWidth: 1.5, borderColor: "#cbe9ec", backgroundColor: "#fff" }, paymentChoiceSelected: { borderColor: "#087f91", backgroundColor: "#e8f8f9" }, paymentChoiceText: { flex: 1, color: "#123c42", fontSize: 14, fontWeight: "900" }, detailsAction: { gap: 4 }, descriptionActionText: { flexShrink: 1, textAlign: "left", fontSize: 14 }, descriptionPopoverTitle: { alignSelf: "stretch", textAlign: "left", fontSize: 15 }, descriptionPopoverActions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 9 }, descriptionPopoverButton: { flex: 1, minHeight: 40, alignItems: "center", justifyContent: "center", borderRadius: 10 }, descriptionCancelButton: { borderWidth: 1, borderColor: "#bfe5e9", backgroundColor: "#fff" }, descriptionSaveButton: { backgroundColor: "#087f91" }, descriptionCancelText: { color: "#087f91", fontSize: 13, fontWeight: "800" }, descriptionSaveText: { color: "#fff", fontSize: 13, fontWeight: "900" }, menuOptionPressed: { backgroundColor: "#effbfc" },
+  driverProfileHero: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 18, backgroundColor: "#e9f8f8", borderWidth: 1, borderColor: "#c7ebed" }, driverProfileAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#078d9a", alignItems: "center", justifyContent: "center" }, driverProfileInitial: { color: "#fff", fontSize: 23, fontWeight: "900" }, driverProfileName: { color: "#123c42", fontSize: 16, fontWeight: "900" }, driverProfileRating: { color: "#ee9e00", fontSize: 14, fontWeight: "900" }, driverProfileRatingMeta: { color: "#64868a", fontSize: 11, fontWeight: "700" }, driverProfileVehicle: { marginTop: 12, padding: 13, borderRadius: 16, borderWidth: 1, borderColor: "#dcebed", backgroundColor: "#fff" }, driverProfileVehicleLabel: { color: "#61868a", fontSize: 9, fontWeight: "900", letterSpacing: 0.8 }, driverProfileVehicleName: { marginTop: 4, color: "#153f45", fontSize: 15, fontWeight: "900" }, driverProfileVehicleMeta: { marginTop: 3, color: "#638489", fontSize: 12, fontWeight: "700" }, profileStats: { flexDirection: "row", alignItems: "center", justifyContent: "space-around", marginTop: 10, paddingVertical: 12, borderRadius: 15, backgroundColor: "#f0fafb" }, profileStat: { alignItems: "center", gap: 3 }, profileStatValue: { color: "#111", fontSize: 14, fontWeight: "900" }, profileStatLabel: { color: "#527277", fontSize: 10, fontWeight: "700" }, profileStatDivider: { width: 1, height: 27, backgroundColor: "#cce5e7" }, profileVehicleMeta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 7 }, profilePlate: { flexDirection: "row", alignItems: "center", gap: 4, marginLeft: "auto", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 8, backgroundColor: "#f0fafb" }, reviewsHeading: { marginTop: 16, marginBottom: 8, color: "#143d43", fontSize: 16, fontWeight: "900" }, reviewCard: { marginBottom: 8, padding: 12, borderRadius: 15, backgroundColor: "#f7fbfb", borderWidth: 1, borderColor: "#e1eff0", gap: 6 }, reviewHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, reviewAuthor: { flexDirection: "row", alignItems: "center", gap: 8 }, reviewAvatar: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "#d8f3f4" }, reviewAvatarText: { color: "#087f91", fontSize: 11, fontWeight: "900" }, reviewRating: { flexDirection: "row", alignItems: "center", gap: 5 }, reviewName: { color: "#1a4146", fontSize: 12, fontWeight: "900" }, reviewStars: { color: "#f3a900", fontSize: 12, fontWeight: "900" }, reviewRatingValue: { color: "#253e42", fontSize: 12, fontWeight: "900" }, reviewText: { color: "#527277", fontSize: 12, lineHeight: 17 },
   vehicleGrid: { flexDirection: "row", gap: 9 }, vehicleInfo: { flex: 1, minWidth: 0, justifyContent: "center", gap: 3, padding: 12, borderRadius: 14, backgroundColor: "#def5f7" }, vehicleName: { color: "#005b66", fontSize: 16, fontWeight: "900" }, vehicleColor: { color: "#526e73", fontSize: 11, fontWeight: "600" }, plateBox: { minWidth: 112, alignItems: "center", justifyContent: "center", gap: 4, padding: 10, borderRadius: 14, borderWidth: 1.5, borderColor: "#bfe5e9", backgroundColor: "#fff" },
   offerFare: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 13, paddingVertical: 9, borderRadius: 14, backgroundColor: "#e9f9fa" }, fareArrow: { color: "#218e97", fontSize: 28, fontWeight: "700" },
   vehiclePlate: { flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 12, backgroundColor: "#f5fbfc" }, plateLabel: { color: "#526e73", fontSize: 8, fontWeight: "900", letterSpacing: 1 }, plateText: { color: "#0d2f34", fontSize: 12, fontWeight: "900", letterSpacing: 1 }, tripFare: { marginLeft: "auto", color: "#005b66", fontSize: 17, fontWeight: "900" },

@@ -124,5 +124,10 @@ Keep Spanish copy direct and local. Use account data when available, show helpfu
 - Each passenger onboarding and ride step has a visible “Demo” action that advances with sample values. Keep it clearly labeled as a demonstration.
 - SMS delivery and RENIEC lookup are not connected. Tell the user when a screen uses demonstration behavior.
 - Destination suggestions currently filter the local place catalog; they are not live map geocoding.
-- On fare confirmation, keep payment, trip details, total offer, and “Buscar” in a fixed footer above the map. “Detalles” holds the optional description and trip needs.
+- On the passenger home map, a centered pickup pin stays fixed while the map pans; the selected point is local demo data, not a geocoded address.
+- Frequent places do not show fares. Saved places can carry a passenger-selected accent color.
+- Group Yape and Plin under one digital wallet choice while preserving the selected provider in the existing payment value.
+- Show at most three driver offers, with car color, plate, distance, seats, and fare. Do not show arrival time or an unverified verification claim in offers.
+- On fare confirmation, keep payment, trip details, total offer, and “Buscar” in a fixed footer above the map. The payment selector opens with two selectable cards: Efectivo and Yape / Plin / Otros; the digital card then offers the individual provider choices. “Detalles” edits a freeform description and saves it explicitly.
+- The hamburger remains reachable when the map sheet is collapsed. Account detail pages use a right-aligned return action instead of a hamburger.
 - Keep emergency contact signup to one optional contact and let the passenger skip it with a text action.

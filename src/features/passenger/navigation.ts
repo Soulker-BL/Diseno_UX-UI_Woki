@@ -5,6 +5,7 @@ export type PassengerScreenName =
   | "login"
   | "phone"
   | "otp"
+  | "password"
   | "role"
   | "register"
   | "terms"
@@ -37,6 +38,7 @@ export const PASSENGER_SCREEN_TITLES: Partial<Record<PassengerScreenName, string
   login: "Iniciar sesión",
   phone: "Introduce tu número de teléfono",
   otp: "Verifica tu número",
+  password: "Crea una contraseña",
   role: "¿Cómo quieres continuar?",
   register: "Ingresa tu DNI",
   terms: "Términos y privacidad",
@@ -66,7 +68,7 @@ export const PASSENGER_SCREEN_TITLES: Partial<Record<PassengerScreenName, string
 };
 
 export const PASSENGER_PUBLIC_SCREENS: ReadonlySet<PassengerScreenName> = new Set([
-  "welcome", "login", "phone", "otp", "role", "register", "terms", "emergency",
+  "welcome", "login", "phone", "otp", "password", "role", "register", "terms", "emergency",
 ]);
 
 export const PASSENGER_ACCOUNT_SCREENS: ReadonlySet<PassengerScreenName> = new Set([

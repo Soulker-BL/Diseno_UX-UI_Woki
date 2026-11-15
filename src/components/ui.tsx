@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import {
   Image,
   Animated,
@@ -6,6 +6,7 @@ import {
   Linking,
   Modal,
   Platform,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -153,6 +154,7 @@ export function Screen({
   left,
   panelActions,
   bottomActions,
+  overlay,
   children,
   mapBackground = false,
   stickyContent,
@@ -165,6 +167,7 @@ export function Screen({
   mapDest,
   onMapOriginChange,
   showNearbyDrivers = false,
+  pickupSelection = false,
 }: {
   title: string;
   back?: () => void;
@@ -172,6 +175,7 @@ export function Screen({
   left?: ReactNode;
   panelActions?: ReactNode;
   bottomActions?: ReactNode;
+  overlay?: ReactNode;
   children: ReactNode;
   mapBackground?: boolean;
   stickyContent?: ReactNode;
@@ -184,6 +188,7 @@ export function Screen({
   mapDest?: [number, number];
   onMapOriginChange?: (p: [number, number]) => void;
   showNearbyDrivers?: boolean;
+  pickupSelection?: boolean;
 }) {
   const palette = usePalette();
   const passenger = useContext(UiThemeContext) === "passenger";
@@ -200,8 +205,8 @@ export function Screen({
   if (mapBackground && passenger) {
     return (
       <KeyboardAvoidingView style={[s.screen, { backgroundColor: palette.map }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <MapPreview origin={mapOrigin} dest={mapDest} onMove={onMapOriginChange} fullScreen showNearbyDrivers={showNearbyDrivers} />
-        <View style={mapScreenStyles.topBar}>
+        <MapPreview origin={mapOrigin} dest={mapDest} onMove={onMapOriginChange} fullScreen showNearbyDrivers={showNearbyDrivers} pickupSelection={pickupSelection} />
+        <View pointerEvents="box-none" style={mapScreenStyles.topBar}>
           <View style={mapScreenStyles.leftActions}>{left}{back && <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={back} style={mapScreenStyles.backButton}><Text style={mapScreenStyles.backGlyph}>‹</Text></Pressable>}</View>
           {!actionsBesideTitle && right}
         </View>
@@ -214,7 +219,6 @@ export function Screen({
                   <Text accessibilityRole="header" numberOfLines={2} adjustsFontSizeToFit style={mapScreenStyles.destinationTitle}>{title}</Text>
                 </View>
                 {actionsBesideTitle && right}
-                {destinationTitle && <Pressable accessibilityRole="button" accessibilityLabel="Cerrar selección de destino" onPress={hideMapPanel} style={({ pressed }) => [mapScreenStyles.destinationClose, pressed && { opacity: 0.55 }]}><Text style={mapScreenStyles.destinationCloseGlyph}>×</Text></Pressable>}
               </View> : <View style={mapScreenStyles.titleBand}>
                 <Text accessibilityRole="header" numberOfLines={2} adjustsFontSizeToFit style={mapScreenStyles.title}>{title}</Text>
               </View>}
@@ -230,6 +234,7 @@ export function Screen({
           </Pressable>
         )}
         {!mapPanelCollapsed && panelActions && <View style={mapScreenStyles.panelActions}>{panelActions}</View>}
+        {overlay}
       </KeyboardAvoidingView>
     );
   }
@@ -266,6 +271,7 @@ export function Screen({
         {children}
       </ScrollView>
       {bottomActions && <View style={screenStyles.bottomActions}>{bottomActions}</View>}
+      {overlay}
     </KeyboardAvoidingView>
   );
 }
@@ -284,7 +290,7 @@ const screenStyles = StyleSheet.create({
 });
 
 const mapScreenStyles = StyleSheet.create({
-  topBar: { position: "absolute", zIndex: 3, top: 12, left: 16, right: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  topBar: { position: "absolute", zIndex: 30, elevation: 30, top: 12, left: 16, right: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   leftActions: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
   panelActions: { position: "absolute", zIndex: 10, left: 16, right: 16, bottom: 14, minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center" },
   backButton: { width: 44, height: 44, borderRadius: 16, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#d9e7e0", backgroundColor: "#ffffffed", shadowColor: "#123b37", shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
@@ -300,10 +306,8 @@ const mapScreenStyles = StyleSheet.create({
   titleBand: { marginHorizontal: -19, marginBottom: 13, minHeight: 58, justifyContent: "center", paddingHorizontal: 19, paddingVertical: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, backgroundColor: "#007985" },
   title: { color: "#fff", fontSize: 21, lineHeight: 26, fontWeight: "900", letterSpacing: -0.4, flexShrink: 1 },
   destinationHeader: { minHeight: 54, marginBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  destinationTitleGroup: { flex: 1, flexDirection: "row", alignItems: "center" },
-  destinationTitle: { flex: 1, color: "#006b77", fontSize: 24, lineHeight: 29, fontWeight: "900", letterSpacing: -0.55 },
-  destinationClose: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#eff8f9" },
-  destinationCloseGlyph: { color: "#4a7a80", fontSize: 24, lineHeight: 26, fontWeight: "500", marginTop: -1 },
+  destinationTitleGroup: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  destinationTitle: { flex: 1, color: "#006b77", fontSize: 25, lineHeight: 31, fontWeight: "900", letterSpacing: -0.55, textAlign: "center" },
 });
 export function Card({ children, compact = false }: { children: ReactNode; compact?: boolean }) {
   const palette = usePalette();
@@ -679,14 +683,47 @@ export function MapPreview({
   onMove,
   fullScreen = false,
   showNearbyDrivers = false,
+  pickupSelection = false,
 }: {
   origin?: [number, number];
   dest?: [number, number];
   onMove?: (p: [number, number]) => void;
   fullScreen?: boolean;
   showNearbyDrivers?: boolean;
+  pickupSelection?: boolean;
 }) {
   const [size, setSize] = useState({ width: 1, height: 1 });
+  const sizeRef = useRef(size);
+  const originRef = useRef(origin);
+  const onMoveRef = useRef(onMove);
+  useEffect(() => {
+    sizeRef.current = size;
+    originRef.current = origin;
+    onMoveRef.current = onMove;
+  }, [size, origin, onMove]);
+  const [mapOffset, setMapOffset] = useState({ x: 0, y: 0 });
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [panHandlers, setPanHandlers] = useState<ReturnType<typeof PanResponder.create>["panHandlers"] | undefined>(undefined);
+  useEffect(() => {
+    const responder = PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_event, gesture) => pickupSelection && !!onMoveRef.current && Math.abs(gesture.dx) + Math.abs(gesture.dy) > 5,
+      onPanResponderGrant: () => setDragOffset({ x: 0, y: 0 }),
+      onPanResponderMove: (_event, gesture) => setDragOffset({ x: gesture.dx, y: gesture.dy }),
+      onPanResponderRelease: (_event, gesture) => {
+        const currentSize = sizeRef.current;
+        const [x, y] = originRef.current;
+        setMapOffset((current) => ({ x: current.x + gesture.dx, y: current.y + gesture.dy }));
+        setDragOffset({ x: 0, y: 0 });
+        onMoveRef.current?.([
+          Math.max(5, Math.min(95, x - (gesture.dx / currentSize.width) * 100)),
+          Math.max(5, Math.min(95, y - (gesture.dy / currentSize.height) * 100)),
+        ]);
+      },
+      onPanResponderTerminate: () => setDragOffset({ x: 0, y: 0 }),
+    });
+    setPanHandlers(responder.panHandlers);
+  }, [pickupSelection]);
   const [radarProgress] = useState(() => new Animated.Value(0));
   useEffect(() => {
     if (!showNearbyDrivers) return;
@@ -721,8 +758,9 @@ export function MapPreview({
   return (
     <View style={fullScreen ? StyleSheet.absoluteFill : undefined}>
       <Pressable
+        {...(pickupSelection ? panHandlers ?? {} : {})}
         accessibilityRole={onMove ? 'button' : 'image'}
-        accessibilityLabel={onMove ? 'Mapa esquemático. Toca para cambiar el punto de recojo' : 'Vista esquemática del recorrido'}
+        accessibilityLabel={pickupSelection ? 'Mapa interactivo. Desliza para ajustar el recojo bajo el pin central' : onMove ? 'Mapa esquemático. Toca para cambiar el punto de recojo' : 'Vista esquemática del recorrido'}
         onLayout={(e) => {
           const { width, height } = e.nativeEvent.layout;
           setSize((current) =>
@@ -731,13 +769,13 @@ export function MapPreview({
               : { width, height },
           );
         }}
-        onPress={onMove ? (e) => onMove([
+        onPress={onMove && !pickupSelection ? (e) => onMove([
           Math.max(5, Math.min(95, (e.nativeEvent.locationX / size.width) * 100)),
           Math.max(5, Math.min(95, (e.nativeEvent.locationY / size.height) * 100)),
         ]) : undefined}
         style={fullScreen ? mapPreviewStyles.full : { height: passenger ? 210 : 220, backgroundColor: passenger ? palette.map : '#e0ebe6', borderRadius: 20, overflow: 'hidden' }}
       >
-        <Svg width="100%" height="100%" viewBox={`0 0 100 ${mapHeight}`} preserveAspectRatio="none">
+        <Svg width={pickupSelection ? "130%" : "100%"} height={pickupSelection ? "130%" : "100%"} viewBox={`0 0 100 ${mapHeight}`} preserveAspectRatio="none" style={pickupSelection ? { position: "absolute", left: "-15%", top: "-15%", transform: [{ translateX: mapOffset.x + dragOffset.x }, { translateY: mapOffset.y + dragOffset.y }] } : undefined}>
           <Rect width="100" height={mapHeight} fill={passenger ? palette.map : '#e0ebe6'} />
           {passenger && <>
             <Rect x="2" y={mapHeight * 0.03} width="17" height={mapHeight * 0.11} rx="2" fill="#def5f7" />
@@ -758,14 +796,15 @@ export function MapPreview({
           </>}
           {!passenger && <SvgText x="5" y="94" fontSize="4" fill={colors.deep}>CERRO DE PASCO</SvgText>}
           {dest && <Path d={`M${markerOrigin[0]},${markerOrigin[1]} C${markerOrigin[0] + 13},${markerOrigin[1] - 12} ${markerDest![0] - 14},${markerDest![1] + 12} ${markerDest![0]},${markerDest![1]}`} fill="none" stroke={passenger ? palette.brand : colors.primary} strokeWidth="1.5" strokeDasharray="2.3 2.3" />}
-          {passenger ? marker(markerOrigin[0], markerOrigin[1], palette.brand, 'origin') : <Circle cx={markerOrigin[0]} cy={markerOrigin[1]} r="3" fill={colors.deep} stroke="white" strokeWidth="1" />}
-          {dest && markerDest && (passenger ? marker(markerDest[0], markerDest[1], palette.pin, 'destination') : <Circle cx={dest[0]} cy={dest[1]} r="3" fill={colors.accent} stroke="white" strokeWidth="1" />)}
+          {!pickupSelection && (passenger ? marker(markerOrigin[0], markerOrigin[1], palette.brand, 'origin') : <Circle cx={markerOrigin[0]} cy={markerOrigin[1]} r="3" fill={colors.deep} stroke="white" strokeWidth="1" />)}
+          {dest && markerDest && (passenger ? <Circle cx={markerDest[0]} cy={markerDest[1]} r="3.8" fill={palette.brand} stroke="#fff" strokeWidth="1.5" /> : <Circle cx={dest[0]} cy={dest[1]} r="3" fill={colors.accent} stroke="white" strokeWidth="1" />)}
           {showNearbyDrivers && passenger && [[27, mapY(24)], [69, mapY(34)], [78, mapY(13)]].map(([x, y], index) => <G key={`nearby-${index}`}>
             <Circle cx={x} cy={y} r="4.6" fill="#fff" stroke="#218e97" strokeWidth="1.2" />
             <SvgText x={x - 1.7} y={y + 1.2} fontSize="3.4" fontWeight="bold" fill="#005b66">W</SvgText>
           </G>)}
         </Svg>
       </Pressable>
+      {pickupSelection && <View pointerEvents="none" style={mapPreviewStyles.pickupPin}><View style={mapPreviewStyles.pickupPinHead}><View style={mapPreviewStyles.pickupPinCenter} /></View><View style={mapPreviewStyles.pickupPinShadow} /></View>}
       {showNearbyDrivers && <Animated.View pointerEvents="none" style={[mapPreviewStyles.radarRing, {
         left: "48%", top: "24%", opacity: radarProgress.interpolate({ inputRange: [0, 1], outputRange: [0.65, 0] }),
         transform: [{ scale: radarProgress.interpolate({ inputRange: [0, 1], outputRange: [0.35, 2.6] }) }],
@@ -778,4 +817,8 @@ export function MapPreview({
 const mapPreviewStyles = StyleSheet.create({
   full: { ...StyleSheet.absoluteFill, overflow: 'hidden', backgroundColor: '#eaf2eb' },
   radarRing: { position: "absolute", width: 96, height: 96, marginLeft: -48, marginTop: -48, borderRadius: 48, borderWidth: 2, borderColor: "#218e97", backgroundColor: "#65d9dd20" },
+  pickupPin: { position: "absolute", left: "50%", top: "50%", width: 34, height: 46, marginLeft: -17, marginTop: -33, alignItems: "center", justifyContent: "flex-start" },
+  pickupPinHead: { width: 31, height: 31, borderRadius: 17, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: "#fff", backgroundColor: "#087f91", shadowColor: "#003e46", shadowOpacity: 0.24, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  pickupPinCenter: { width: 9, height: 9, borderRadius: 5, backgroundColor: "#fff" },
+  pickupPinShadow: { width: 13, height: 5, marginTop: 3, borderRadius: 7, backgroundColor: "#004e5866" },
 });

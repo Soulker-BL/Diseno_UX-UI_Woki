@@ -53,7 +53,7 @@ export type Passenger = {
   dest: Place | null;
   price: number;
   pax: number;
-  pay: "Efectivo" | "Yape" | "Plin" | null;
+  pay: "Efectivo" | "Yape" | "Plin" | "Otros" | null;
   reference: string;
   notes: string;
   driver: Offer | null;

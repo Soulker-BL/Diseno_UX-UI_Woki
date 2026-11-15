@@ -6,6 +6,7 @@ export type Place = {
   min: number;
   price: number;
   outOfZone?: boolean;
+  accentColor?: string;
 };
 
 export const PLACES: Place[] = [
@@ -80,6 +81,7 @@ export type Offer = {
   plate: string;
   seats: number;
   eta: number;
+  distanceKm: number;
   price: number;
   reviews: Review[];
 };
@@ -101,6 +103,7 @@ const DRIVERS: Omit<Offer, "price">[] = [
     plate: "W1A-482",
     seats: 4,
     eta: 3,
+    distanceKm: 1.2,
     reviews: [
       { name: "Lucía P.", stars: 5, text: "Muy amable y puntual." },
       { name: "Andrés M.", stars: 5, text: "Manejó con cuidado." },
@@ -119,6 +122,7 @@ const DRIVERS: Omit<Offer, "price">[] = [
     plate: "W2B-127",
     seats: 4,
     eta: 5,
+    distanceKm: 2.1,
     reviews: [
       { name: "Carlos R.", stars: 5, text: "Llegó rápido al recojo." },
       { name: "María Q.", stars: 4, text: "Todo bien." },
@@ -136,6 +140,7 @@ const DRIVERS: Omit<Offer, "price">[] = [
     plate: "W3K-903",
     seats: 4,
     eta: 2,
+    distanceKm: 0.8,
     reviews: [
       {
         name: "Jorge L.",
@@ -156,6 +161,7 @@ const DRIVERS: Omit<Offer, "price">[] = [
     plate: "W4C-215",
     seats: 6,
     eta: 7,
+    distanceKm: 3.4,
     reviews: [
       { name: "Familia T.", stars: 5, text: "Entramos los seis con maletas." },
       { name: "Ana V.", stars: 4, text: "Puntual." },
