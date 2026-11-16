@@ -19,13 +19,8 @@ export default function WelcomeScreen() {
   return (
     <PassengerTheme>
       <ScrollView contentContainerStyle={styles.screen}>
-        <View style={styles.topLine}>
-          <View style={styles.pin}><Text style={styles.pinText}>⌖</Text></View>
-          <Text style={styles.city}>CERRO DE PASCO</Text>
-        </View>
-
         <View style={styles.hero}>
-          <View style={styles.logoPlate}><BrandLogo color="#005b66" size={48} /></View>
+          <View style={styles.brandLogo}><BrandLogo color="#005b66" size={72} /></View>
           <Text accessibilityRole="header" style={styles.title}>Muévete fácil.</Text>
           <Text accessibilityRole="header" style={styles.title}>Llega con Woki.</Text>
           <Text style={styles.subtitle}>Tu taxi urbano, más cerca.</Text>
@@ -52,12 +47,8 @@ export default function WelcomeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flexGrow: 1, backgroundColor: "#f5fbfc", paddingHorizontal: 22, paddingTop: 16, paddingBottom: 24 },
-  topLine: { flexDirection: "row", alignItems: "center", gap: 9 },
-  pin: { width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 13, backgroundColor: "#dff7f8" },
-  pinText: { color: "#087f91", fontSize: 24, fontWeight: "800" },
-  city: { flex: 1, color: "#111111", fontSize: 10, fontWeight: "900", letterSpacing: 1.05 },
   hero: { flex: 1, minHeight: 360, justifyContent: "center", paddingVertical: 38 },
-  logoPlate: { alignSelf: "flex-start", marginBottom: 32, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 22, backgroundColor: "#dff7f8" },
+  brandLogo: { alignSelf: "flex-start", marginBottom: 26 },
   title: { maxWidth: 420, color: "#111111", fontSize: 40, lineHeight: 46, fontWeight: "900", letterSpacing: -1.3 },
   subtitle: { marginTop: 13, color: "#111111", fontSize: 17, lineHeight: 24, fontWeight: "600" },
   routeLine: { width: "100%", maxWidth: 310, height: 52, flexDirection: "row", alignItems: "center", marginTop: 38 },
@@ -70,6 +61,6 @@ const styles = StyleSheet.create({
   footer: { position: "absolute", bottom: 8, right: 14 },
   security: { color: "#111111", fontSize: 12, lineHeight: 18, textAlign: "center" },
   legal: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "center", marginTop: 22, paddingHorizontal: 6 },
-  legalCopy: { color: "#111111", fontSize: 10, lineHeight: 16 },
-  legalLink: { color: "#111111", fontSize: 10, lineHeight: 16, fontWeight: "800", textDecorationLine: "underline" },
+  legalCopy: { color: "#111111", fontSize: 12, lineHeight: 18 },
+  legalLink: { color: "#111111", fontSize: 12, lineHeight: 18, fontWeight: "800", textDecorationLine: "underline" },
 });

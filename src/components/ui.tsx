@@ -2,6 +2,7 @@ import { createContext, type ReactNode, useContext, useEffect, useRef, useState 
 import {
   Image,
   Animated,
+  Easing,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -13,6 +14,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
   type TextInputProps,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
@@ -41,7 +43,7 @@ export const colors = {
   accent: "#f5a524",
 };
 export const passengerPalette = {
-  bg: "#f5fbfc",
+  bg: "#edf6f7",
   card: "#ffffff",
   ink: "#0d2f34",
   muted: "#526e73",
@@ -49,7 +51,7 @@ export const passengerPalette = {
   brand: "#218e97",
   deep: "#005b66",
   soft: "#def5f7",
-  border: "#bfe5e9",
+  border: "#b3d4d8",
   danger: "#b4232e",
   warning: "#fff4dc",
   accent: "#65d9dd",
@@ -192,9 +194,25 @@ export function Screen({
 }) {
   const palette = usePalette();
   const passenger = useContext(UiThemeContext) === "passenger";
+  const { height, width } = useWindowDimensions();
   const [mapPanelCollapsed, setMapPanelCollapsed] = useState(false);
   const [panelMotion] = useState(() => new Animated.Value(0));
-  const hideMapPanel = () => Animated.timing(panelMotion, { toValue: 1, duration: 230, useNativeDriver: true }).start(({ finished }) => {
+  const [screenEntrance] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (!passenger) {
+      screenEntrance.setValue(1);
+      return;
+    }
+    screenEntrance.setValue(0);
+    const entrance = Animated.timing(screenEntrance, { toValue: 1, duration: 190, easing: Easing.out(Easing.quad), useNativeDriver: true });
+    entrance.start();
+    return () => entrance.stop();
+  }, [passenger, screenEntrance]);
+  const screenEntranceStyle = {
+    opacity: screenEntrance,
+    transform: [{ translateY: screenEntrance.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
+  };
+  const hideMapPanel = () => Animated.timing(panelMotion, { toValue: 1, duration: 420, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }).start(({ finished }) => {
     if (finished) setMapPanelCollapsed(true);
   });
   const revealMapPanel = () => {
@@ -205,13 +223,14 @@ export function Screen({
   if (mapBackground && passenger) {
     return (
       <KeyboardAvoidingView style={[s.screen, { backgroundColor: palette.map }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <Animated.View style={[{ flex: 1 }, passenger && screenEntranceStyle]}>
         <MapPreview origin={mapOrigin} dest={mapDest} onMove={onMapOriginChange} fullScreen showNearbyDrivers={showNearbyDrivers} pickupSelection={pickupSelection} />
-        <View pointerEvents="box-none" style={mapScreenStyles.topBar}>
+        <View pointerEvents="box-none" style={[mapScreenStyles.topBar, width < 360 && mapScreenStyles.topBarCompact]}>
           <View style={mapScreenStyles.leftActions}>{left}{back && <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={back} style={mapScreenStyles.backButton}><Text style={mapScreenStyles.backGlyph}>‹</Text></Pressable>}</View>
           {!actionsBesideTitle && right}
         </View>
         {!mapPanelCollapsed ? (
-          <Animated.ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={[mapScreenStyles.scroll, { opacity: panelMotion.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateY: panelMotion.interpolate({ inputRange: [0, 1], outputRange: [0, 68] }) }] }]} contentContainerStyle={mapScreenStyles.mapContent}>
+          <Animated.ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={[mapScreenStyles.scroll, { transform: [{ translateY: panelMotion.interpolate({ inputRange: [0, 1], outputRange: [0, height * 0.86] }) }] }]} contentContainerStyle={mapScreenStyles.mapContent}>
               <View style={[mapScreenStyles.panel, !!stickyContent && mapScreenStyles.panelScrollable]}>
               <Pressable accessibilityRole="button" accessibilityLabel="Ocultar panel para ver el mapa completo" onPress={hideMapPanel} style={mapScreenStyles.handleTouch}><View style={mapScreenStyles.handle} /></Pressable>
               {destinationTitle || softTitle ? <View style={mapScreenStyles.destinationHeader}>
@@ -230,11 +249,12 @@ export function Screen({
           </Animated.ScrollView>
         ) : (
           <Pressable accessibilityRole="button" accessibilityLabel="Mostrar detalles del viaje" onPress={revealMapPanel} style={mapScreenStyles.expandPanel}>
-            <View style={mapScreenStyles.handle} /><Text style={mapScreenStyles.expandLabel}>Mostrar {title.toLowerCase()}</Text>
+            <View style={mapScreenStyles.handle} /><Text accessibilityRole="header" style={mapScreenStyles.expandLabel}>{title}</Text>
           </Pressable>
         )}
         {!mapPanelCollapsed && panelActions && <View style={mapScreenStyles.panelActions}>{panelActions}</View>}
         {overlay}
+        </Animated.View>
       </KeyboardAvoidingView>
     );
   }
@@ -243,6 +263,7 @@ export function Screen({
       style={[s.screen, passenger && { backgroundColor: palette.bg }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <Animated.View style={[{ flex: 1 }, passenger && screenEntranceStyle]}>
       <View style={[passenger ? screenStyles.passengerHeader : screenStyles.defaultHeader, passenger && squareHeader && screenStyles.squarePassengerHeader]}>
         {actionsBesideTitle ? (
           <View style={screenStyles.titleActionRow}>
@@ -265,12 +286,13 @@ export function Screen({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           s.content,
-          passenger && { padding: 20, gap: 14 },
+          passenger && { padding: width < 360 ? 14 : 20, gap: 14 },
         ]}
       >
         {children}
       </ScrollView>
-      {bottomActions && <View style={screenStyles.bottomActions}>{bottomActions}</View>}
+      {bottomActions && <View style={[screenStyles.bottomActions, passenger && width < 360 && screenStyles.bottomActionsCompact]}>{bottomActions}</View>}
+      </Animated.View>
       {overlay}
     </KeyboardAvoidingView>
   );
@@ -285,12 +307,14 @@ const screenStyles = StyleSheet.create({
   leftActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   inlineTitle: { flex: 1, minWidth: 0 },
   bottomActions: { minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingBottom: 8, backgroundColor: "#f5fbfc" },
+  bottomActionsCompact: { paddingHorizontal: 14 },
   backButton: { minHeight: 40, justifyContent: "center", paddingHorizontal: 12, borderRadius: 14, backgroundColor: "#ffffff26", borderWidth: 1, borderColor: "#ffffff3d" },
   backText: { color: "#fff", fontSize: 14, fontWeight: "800" },
 });
 
 const mapScreenStyles = StyleSheet.create({
-  topBar: { position: "absolute", zIndex: 30, elevation: 30, top: 12, left: 16, right: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  topBar: { position: "absolute", zIndex: 30, elevation: 30, top: 12, left: 16, right: 16, flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
+  topBarCompact: { left: 12, right: 12 },
   leftActions: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8 },
   panelActions: { position: "absolute", zIndex: 10, left: 16, right: 16, bottom: 14, minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "center" },
   backButton: { width: 44, height: 44, borderRadius: 16, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#d9e7e0", backgroundColor: "#ffffffed", shadowColor: "#123b37", shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
@@ -301,8 +325,8 @@ const mapScreenStyles = StyleSheet.create({
   panelScrollable: { flexGrow: 0, flexShrink: 1, minHeight: 0 }, innerScroll: { flexGrow: 0, flexShrink: 1, minHeight: 0 }, innerContent: { gap: 9, paddingBottom: 3 }, innerContentWithActions: { paddingBottom: 76 },
   handleTouch: { alignSelf: "center", width: 72, height: 44, alignItems: "center", justifyContent: "center", marginBottom: 0 },
   handle: { alignSelf: "center", width: 38, height: 4, borderRadius: 4, backgroundColor: "#a9dce1" },
-  expandPanel: { position: "absolute", left: 14, right: 14, bottom: 14, minHeight: 68, alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 20, borderWidth: 1, borderColor: "#005b66", backgroundColor: "#005b66", shadowColor: "#0d2f34", shadowOpacity: 0.15, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
-  expandLabel: { color: "#fff", fontSize: 13, fontWeight: "800" },
+  expandPanel: { position: "absolute", left: 8, right: 8, bottom: 0, minHeight: 82, alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 18, borderTopLeftRadius: 21, borderTopRightRadius: 21, borderWidth: 1, borderColor: "#d6e9eb", backgroundColor: "rgba(255,255,255,0.98)", shadowColor: "#0d2f34", shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: -4 }, elevation: 8 },
+  expandLabel: { color: "#006b77", fontSize: 17, fontWeight: "900", textAlign: "center" },
   titleBand: { marginHorizontal: -19, marginBottom: 13, minHeight: 58, justifyContent: "center", paddingHorizontal: 19, paddingVertical: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18, backgroundColor: "#007985" },
   title: { color: "#fff", fontSize: 21, lineHeight: 26, fontWeight: "900", letterSpacing: -0.4, flexShrink: 1 },
   destinationHeader: { minHeight: 54, marginBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
@@ -321,7 +345,7 @@ export function Card({ children, compact = false }: { children: ReactNode; compa
           backgroundColor: palette.card,
           borderRadius: 15,
           borderWidth: 1,
-          borderColor: compact ? "#b7dfe3" : "#d6e9eb",
+          borderColor: compact ? "#a9d2d7" : "#c5dfe2",
           ...(compact ? { shadowColor: "#164c53", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 } : {}),
           gap: compact ? 8 : 11,
         },
@@ -342,7 +366,7 @@ export function Button({
   children: string;
   onPress: () => void;
   disabled?: boolean;
-  tone?: "primary" | "secondary" | "danger" | "plain" | "linkDanger";
+  tone?: "primary" | "secondary" | "danger" | "softDanger" | "plain" | "linkDanger";
   compact?: boolean;
   centered?: boolean;
 }) {
@@ -361,12 +385,14 @@ export function Button({
           minHeight: compact ? 44 : 54,
           borderRadius: compact ? 11 : 13,
           paddingHorizontal: compact ? 12 : 18,
-          backgroundColor: tone === "danger" ? palette.danger : tone === "primary" ? palette.primary : tone === "secondary" ? palette.soft : "transparent",
+          backgroundColor: tone === "danger" ? palette.danger : tone === "softDanger" ? "#fff0ef" : tone === "primary" ? palette.primary : tone === "secondary" ? palette.soft : "transparent",
         },
         {
           backgroundColor:
             tone === "danger"
               ? palette.danger
+              : tone === "softDanger"
+                ? "#fff0ef"
               : tone === "linkDanger"
                 ? "transparent"
                 : tone === "primary"
@@ -376,13 +402,14 @@ export function Button({
                   : "transparent",
           opacity: disabled ? (passenger ? 0.5 : 0.4) : pressed ? (passenger ? 0.76 : 0.7) : 1,
         },
+        tone === "softDanger" && { borderWidth: 1.5, borderColor: "#d84b56" },
       ]}
     >
       <Text
         style={[
           s.buttonText,
           passenger && { fontWeight: "700", letterSpacing: 0.1 },
-          tone === "linkDanger" ? { color: palette.danger, fontWeight: "800" } : tone !== "primary" && tone !== "danger" && { color: palette.deep },
+          tone === "linkDanger" || tone === "softDanger" ? { color: tone === "softDanger" ? "#a9202c" : palette.danger, fontWeight: "900" } : tone !== "primary" && tone !== "danger" && { color: palette.deep },
         ]}
       >
         {children}
@@ -497,10 +524,15 @@ export function Sheet({
 export type Confirmation = {
   title: string;
   message: string;
-  action: () => void;
+  action: (input?: string) => void;
   danger?: boolean;
   summary?: { eyebrow: string; title: string; detail: string; price: string };
   hideClose?: boolean;
+  softDanger?: boolean;
+  inputLabel?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  variant?: "emergency" | "safetyReport";
 } | null;
 export function Confirm({
   value,
@@ -509,27 +541,46 @@ export function Confirm({
   value: Confirmation;
   close: () => void;
 }) {
+  const [input, setInput] = useState("");
   return (
     value && (
       <Sheet title={value.title} close={close} hideClose={value.hideClose}>
+        {value.variant === "emergency" && <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, borderWidth: 1.5, borderColor: "#e99ba2", backgroundColor: "#fff0f1" }}>
+          <View style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center", borderRadius: 15, backgroundColor: "#ffe0e2" }}><Svg width={28} height={30} viewBox="0 0 24 26"><Path d="M12 2 21 5v7c0 5.6-3.7 9.6-9 12-5.3-2.4-9-6.4-9-12V5l9-3Z" fill="#fff" stroke="#c62836" strokeWidth={2} strokeLinejoin="round"/><Path d="M12 7.5v5.7m0 3.4v.2" stroke="#c62836" strokeWidth={2.6} strokeLinecap="round"/></Svg></View>
+          <View style={{ flex: 1, gap: 3 }}><Text style={{ color: "#a9202c", fontSize: 11, fontWeight: "900", letterSpacing: 0.7 }}>ASISTENCIA DE EMERGENCIA</Text><Text style={{ color: "#71232b", fontSize: 17, fontWeight: "900" }}>Línea policial · 105</Text></View>
+        </View>}
+        {value.variant === "safetyReport" && <View style={{ flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: 16, borderWidth: 1.5, borderColor: "#85cbd1", backgroundColor: "#eefafb" }}>
+          <View style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center", borderRadius: 15, backgroundColor: "#d8f3f5" }}><Svg width={27} height={29} viewBox="0 0 24 26"><Path d="M12 2 21 5v7c0 5.6-3.7 9.6-9 12-5.3-2.4-9-6.4-9-12V5l9-3Z" fill="#fff" stroke="#087f91" strokeWidth={2} strokeLinejoin="round"/><Path d="M12 7.5v5.7m0 3.4v.2" stroke="#087f91" strokeWidth={2.5} strokeLinecap="round"/></Svg></View>
+          <View style={{ flex: 1, gap: 3 }}><Text style={{ color: "#087f91", fontSize: 11, fontWeight: "900", letterSpacing: 0.7 }}>REPORTE DE SEGURIDAD</Text><Text style={{ color: "#123c42", fontSize: 15, fontWeight: "900" }}>Tu seguridad es lo primero</Text></View>
+        </View>}
         {!!value.message && <Text style={s.text}>{value.message}</Text>}
+        {value.inputLabel && <TextInput
+          accessibilityLabel={value.inputLabel}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Cuéntanos qué ocurrió"
+          placeholderTextColor="#7d9699"
+          multiline
+          textAlignVertical="top"
+          style={{ minHeight: 92, padding: 13, borderWidth: 1.5, borderColor: "#d9a3a8", borderRadius: 13, backgroundColor: "#fffafa", color: "#18383d", fontSize: 14, lineHeight: 20 }}
+        />}
         {value.summary && <View style={{ gap: 5, padding: 15, borderRadius: 18, backgroundColor: "#e2f8f8", borderWidth: 1, borderColor: "#9fe1e4" }}>
-          <Text style={{ color: "#087f91", fontSize: 10, fontWeight: "900", letterSpacing: 1 }}>{value.summary.eyebrow}</Text>
+          <Text style={{ color: "#087f91", fontSize: 12, fontWeight: "900", letterSpacing: 1 }}>{value.summary.eyebrow}</Text>
           <Text style={{ color: "#073b43", fontSize: 19, fontWeight: "900" }}>{value.summary.title}</Text>
           <Text style={{ color: "#526e73", fontSize: 13, fontWeight: "600" }}>{value.summary.detail}</Text>
           <Text style={{ color: "#005b66", fontSize: 25, fontWeight: "900", marginTop: 3 }}>{value.summary.price}</Text>
         </View>}
         <Button
-          tone={value.danger ? "danger" : "primary"}
+          tone={value.softDanger ? "softDanger" : value.danger ? "danger" : "primary"}
           onPress={() => {
             close();
-            value.action();
+            value.action(input);
           }}
         >
-          Confirmar
+          {value.confirmLabel ?? "Confirmar"}
         </Button>
         <Button tone="secondary" onPress={close}>
-          Cancelar
+          {value.cancelLabel ?? "Cancelar"}
         </Button>
       </Sheet>
     )
@@ -544,7 +595,7 @@ export function Stars({
 }) {
   const passenger = useContext(UiThemeContext) === "passenger";
   return (
-    <View style={s.row}>
+    <View style={[s.row, passenger && starStyles.passengerStarsRow]}>
       {[1, 2, 3, 4, 5].map((n) => (
         <Pressable
           key={n}
@@ -564,8 +615,8 @@ export function Stars({
                   : passenger
                     ? "#bfd4d7"
                     : colors.border,
-              fontSize: passenger ? 32 : 36,
-              lineHeight: passenger ? 38 : undefined,
+              fontSize: passenger ? 36 : 36,
+              lineHeight: passenger ? 42 : undefined,
             }, passenger && n <= value && starStyles.passengerStarSelected]}
           >
             ★
@@ -576,7 +627,8 @@ export function Stars({
   );
 }
 const starStyles = StyleSheet.create({
-  passengerStar: { width: 44, height: 44, alignItems: "center", justifyContent: "center", marginRight: 4 },
+  passengerStarsRow: { justifyContent: "center", gap: 0 },
+  passengerStar: { width: 44, height: 48, alignItems: "center", justifyContent: "center" },
   passengerStarSelected: {},
 });
 export function Photo({

@@ -1,57 +1,16 @@
-import { useEffect, useState } from "react";
-import { Animated, Easing, Platform, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { useEffect } from "react";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { router } from "expo-router";
 import { BrandLogo } from "./BrandLogo";
-import { BrandTaxi } from "./BrandTaxi";
 
-const TAXI_WIDTH = 118;
-const TAXI_HEIGHT = 58;
-const DRIVE_DURATION = 1900;
 const SPLASH_DURATION = 3150;
 
 export default function SplashScreen() {
-  const { width } = useWindowDimensions();
-  const [taxiX] = useState(() => new Animated.Value(-170));
-  const [dashX] = useState(() => new Animated.Value(0));
-  const [wheelSpin] = useState(() => new Animated.Value(0));
-  const useNativeDriver = Platform.OS !== "web";
-
   useEffect(() => {
-    taxiX.setValue(-170);
-    wheelSpin.setValue(0);
-    const drive = Animated.parallel([
-      Animated.timing(taxiX, {
-        toValue: width + 40,
-        duration: DRIVE_DURATION,
-        delay: 450,
-        easing: Easing.bezier(0.4, 0.1, 0.3, 1),
-        useNativeDriver,
-      }),
-      Animated.timing(wheelSpin, {
-        toValue: 1,
-        duration: DRIVE_DURATION,
-        delay: 450,
-        easing: Easing.linear,
-        useNativeDriver,
-      }),
-    ]);
-    const dashes = Animated.loop(Animated.timing(dashX, {
-      toValue: -44,
-      duration: 800,
-      easing: Easing.linear,
-      useNativeDriver,
-    }));
-
-    drive.start();
-    dashes.start();
     const timer = setTimeout(() => router.replace("/inicio"), SPLASH_DURATION);
-    return () => {
-      clearTimeout(timer);
-      drive.stop();
-      dashes.stop();
-    };
-  }, [dashX, taxiX, useNativeDriver, wheelSpin, width]);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <View style={styles.screen}>
@@ -75,14 +34,9 @@ export default function SplashScreen() {
         </Text>
       </View>
 
-      <View accessibilityLabel="Taxi Woki pasando por la carretera" accessibilityRole="image" style={styles.road}>
-        <View style={styles.roadSurface} />
-        <Animated.View style={[styles.dashes, { transform: [{ translateX: dashX }] }]}>
-          {Array.from({ length: 28 }, (_, index) => <View key={index} style={styles.dash} />)}
-        </Animated.View>
-        <Animated.View style={[styles.taxi, { transform: [{ translateX: taxiX }] }]}>
-          <BrandTaxi width={TAXI_WIDTH} height={TAXI_HEIGHT} wheelSpin={wheelSpin} />
-        </Animated.View>
+      <View accessibilityLabel="Cargando Woki" accessibilityRole="progressbar" style={styles.loading}>
+        <ActivityIndicator color="#f5a524" size="large" />
+        <Text style={styles.loadingText}>Preparando tu viaje</Text>
       </View>
     </View>
   );
@@ -93,9 +47,6 @@ const styles = StyleSheet.create({
   brandBlock: { alignItems: "center", marginTop: -20 },
   tagline: { marginTop: 20, color: "#fff", fontSize: 25, lineHeight: 32, fontWeight: "800", letterSpacing: -0.25, textShadowColor: "#00303744", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 14 },
   taglineAccent: { textDecorationLine: "underline", textDecorationColor: "#f5a524", textDecorationStyle: "solid" },
-  road: { position: "absolute", left: 0, right: 0, bottom: "16%", height: 64, overflow: "hidden" },
-  roadSurface: { position: "absolute", left: 0, top: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.14)" },
-  dashes: { position: "absolute", left: 0, right: -44, top: 39, height: 3, flexDirection: "row", gap: 22 },
-  dash: { width: 22, height: 3, backgroundColor: "rgba(255,255,255,0.8)" },
-  taxi: { position: "absolute", left: 0, bottom: 10, width: TAXI_WIDTH, height: TAXI_HEIGHT },
+  loading: { position: "absolute", bottom: "15%", alignItems: "center", gap: 12 },
+  loadingText: { color: "#e7fbfc", fontSize: 13, fontWeight: "700", letterSpacing: 0.3 },
 });

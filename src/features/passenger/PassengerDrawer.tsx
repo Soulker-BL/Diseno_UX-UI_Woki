@@ -1,4 +1,5 @@
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Animated, Easing, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Line, Path, Rect } from "react-native-svg";
 import type { PassengerScreenName } from "./navigation";
 
@@ -20,6 +21,24 @@ export function PassengerDrawer({ close, onNavigate, name, phone, photo, activeS
   logout: () => void;
   support: () => void;
 }) {
+  const { width } = useWindowDimensions();
+  const panelWidth = Math.min(width * 0.76, 320);
+  const [panelX] = useState(() => new Animated.Value(-panelWidth));
+  const [closing, setClosing] = useState(false);
+  useEffect(() => {
+    panelX.setValue(-panelWidth);
+    const entrance = Animated.timing(panelX, { toValue: 0, duration: 270, easing: Easing.out(Easing.cubic), useNativeDriver: true });
+    entrance.start();
+    return () => entrance.stop();
+  }, [panelWidth, panelX]);
+  const requestClose = useCallback(() => {
+    if (closing) return;
+    setClosing(true);
+    Animated.timing(panelX, { toValue: -panelWidth, duration: 270, easing: Easing.in(Easing.cubic), useNativeDriver: true })
+      .start(({ finished }) => {
+        if (finished) close();
+      });
+  }, [close, closing, panelWidth, panelX]);
   const accountItems: [PassengerScreenName, string][] = [
     ["profile", "Mi perfil"], ["places", "Mis lugares"], ["history", "Historial de viajes"], ["reviews", "Reseñas recibidas"],
   ];
@@ -27,16 +46,16 @@ export function PassengerDrawer({ close, onNavigate, name, phone, photo, activeS
     ["contacts", "Contactos de emergencia"], ["termsView", "Términos y privacidad"],
   ];
   return (
-    <Modal transparent animationType="fade" visible onRequestClose={close}>
+    <Modal transparent animationType="none" visible onRequestClose={requestClose}>
       <View style={styles.overlay}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Cerrar menú" onPress={close} style={styles.scrim} />
-        <View style={styles.panel}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Cerrar menú" onPress={requestClose} style={styles.scrim} />
+        <Animated.View style={[styles.panel, { width: panelWidth, transform: [{ translateX: panelX }] }]}>
           <View style={styles.identity}>
             <View style={styles.avatar}>
               {photo ? <Image accessibilityLabel="Tu foto de perfil" source={{ uri: photo }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{(name || "P").slice(0, 1).toUpperCase()}</Text>}
             </View>
             <View style={{ flex: 1, gap: 3 }}><Text numberOfLines={1} style={styles.name}>{name || "Pasajero Woki"}</Text><Text style={styles.phone}>+51 {phone}</Text></View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Cerrar menú" onPress={close} style={styles.close}><Svg width={16} height={16} viewBox="0 0 16 16"><Path d="m4 4 8 8m0-8-8 8" stroke="#005b66" strokeWidth={1.8} strokeLinecap="round" /></Svg></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Volver y cerrar menú" onPress={requestClose} style={styles.close}><Svg width={19} height={19} viewBox="0 0 24 24"><Path d="m11 5-7 7 7 7M4 12h16" fill="none" stroke="#005b66" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" /></Svg></Pressable>
           </View>
           <ScrollView style={styles.navScroll} contentContainerStyle={styles.navContent} showsVerticalScrollIndicator={false}>
             <Text style={styles.sectionLabel}>CUENTA</Text>
@@ -56,7 +75,7 @@ export function PassengerDrawer({ close, onNavigate, name, phone, photo, activeS
             <Pressable accessibilityRole="button" onPress={support} style={({ pressed }) => [styles.footerAction, pressed && styles.rowPressed]}><View style={styles.iconTile}><DrawerIcon name="support" color="#087f91" /></View><Text style={styles.linkLabel}>Ayuda y soporte</Text><Text style={styles.chevron}>›</Text></Pressable>
             <Pressable accessibilityRole="button" onPress={logout} style={({ pressed }) => [styles.footerAction, pressed && styles.rowPressed]}><View style={styles.logoutTile}><DrawerIcon name="logout" color="#b54141" /></View><Text style={styles.logoutText}>Cerrar sesión</Text></Pressable>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -96,12 +115,12 @@ const styles = StyleSheet.create({
   trigger: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center", gap: 4, borderWidth: 1, borderColor: "#bfe5e9", backgroundColor: "#fff" },
   hamburgerLine: { width: 18, height: 2, borderRadius: 2, backgroundColor: "#005b66" },
   overlay: { flex: 1, flexDirection: "row", backgroundColor: "#0d2f3488" }, scrim: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
-  panel: { width: "76%", maxWidth: 320, height: "100%", backgroundColor: "#f3fbfc", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 14, borderRightWidth: 1, borderRightColor: "#d6eef0" },
+  panel: { height: "100%", backgroundColor: "#f3fbfc", paddingHorizontal: 16, paddingTop: 8, paddingBottom: 14, borderRightWidth: 1, borderRightColor: "#d6eef0" },
   close: { width: 44, height: 44, flexShrink: 0, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#def5f7" },
   identity: { minHeight: 58, marginTop: 12, marginBottom: 12, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 2, backgroundColor: "transparent", borderWidth: 0, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   avatar: { width: 50, height: 50, overflow: "hidden", borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderWidth: 2, borderColor: "#8cdee3" }, avatarImage: { width: 50, height: 50 }, avatarText: { color: "#087f91", fontSize: 20, fontWeight: "800" },
-  eyebrow: { color: "#218e97", fontSize: 9, fontWeight: "900", letterSpacing: 1 }, name: { color: "#0d2f34", fontSize: 15, fontWeight: "800" }, phone: { color: "#526e73", fontSize: 12 },
-  navScroll: { flex: 1 }, navContent: { paddingTop: 1, paddingBottom: 10, gap: 7 }, sectionLabel: { marginTop: 2, color: "#65868b", fontSize: 9, fontWeight: "900", letterSpacing: 1.15 },
+  eyebrow: { color: "#218e97", fontSize: 12, fontWeight: "900", letterSpacing: 1 }, name: { color: "#0d2f34", fontSize: 15, fontWeight: "800" }, phone: { color: "#526e73", fontSize: 12 },
+  navScroll: { flex: 1 }, navContent: { paddingTop: 1, paddingBottom: 10, gap: 7 }, sectionLabel: { marginTop: 2, color: "#65868b", fontSize: 12, fontWeight: "900", letterSpacing: 1.15 },
   linkGroup: { padding: 3, borderRadius: 16, backgroundColor: "#fff", borderWidth: 1, borderColor: "#d9edef" }, link: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 6, borderRadius: 12 }, linkActive: { backgroundColor: "#e7f8f9" }, rowPressed: { opacity: 0.75 },
   iconTile: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: "#e1f5f6" }, iconTileActive: { backgroundColor: "#087f91" },
   itemDivider: { height: 1, marginLeft: 44, marginRight: 7, backgroundColor: "#edf4f5" }, linkLabel: { flex: 1, color: "#0d2f34", fontSize: 13, fontWeight: "600" }, linkLabelActive: { color: "#005b66", fontWeight: "800" }, chevron: { color: "#53bdc7", fontSize: 21 }, chevronActive: { color: "#087f91" },
